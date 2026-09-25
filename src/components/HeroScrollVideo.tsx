@@ -273,9 +273,15 @@ export default function HeroScrollVideo() {
       if (progress >= 0.75) {
         heroRevealRef.current.classList.remove("opacity-0", "translate-y-8", "pointer-events-none");
         heroRevealRef.current.classList.add("opacity-100", "translate-y-0", "pointer-events-auto");
+        if (canvasRef.current) {
+          canvasRef.current.style.filter = "blur(10px) brightness(0.65)";
+        }
       } else {
         heroRevealRef.current.classList.remove("opacity-100", "translate-y-0", "pointer-events-auto");
         heroRevealRef.current.classList.add("opacity-0", "translate-y-8", "pointer-events-none");
+        if (canvasRef.current) {
+          canvasRef.current.style.filter = "none";
+        }
       }
     }
   }, []);
@@ -358,7 +364,7 @@ export default function HeroScrollVideo() {
             ref={canvasRef}
             width={isMobile ? MOBILE_WIDTH : DESKTOP_WIDTH}
             height={isMobile ? MOBILE_HEIGHT : DESKTOP_HEIGHT}
-            className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+            className="absolute inset-0 w-full h-full object-cover pointer-events-none transition-[filter] duration-700 ease-out"
             style={{ width: "100%", height: "100%", objectFit: "cover" }}
           />
 
@@ -434,10 +440,19 @@ export default function HeroScrollVideo() {
               : "opacity-0 translate-y-8 pointer-events-none"
           }`}
         >
-          {/* Glass Card positioned in the lower-third, safely clear of the portrait */}
-          <div className="glass-panel p-6 sm:p-8 rounded-2xl max-w-3xl backdrop-blur-xl border border-white/15 shadow-2xl relative overflow-hidden">
+          {/* Glass Card with enhanced frosted glassmorphism & specular border */}
+          <div
+            className="hero-glass-card p-6 sm:p-8 rounded-2xl max-w-3xl border border-white/20 shadow-2xl relative overflow-hidden"
+            style={{
+              backdropFilter: "blur(36px) saturate(190%)",
+              WebkitBackdropFilter: "blur(36px) saturate(190%)",
+            }}
+          >
+            {/* Specular Frosted Sheen Overlay */}
+            <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-emerald-500/5 pointer-events-none" />
+
             {/* Subtle background glow */}
-            <div className="absolute -top-12 -right-12 w-48 h-48 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute -top-12 -right-12 w-48 h-48 bg-emerald-500/15 rounded-full blur-3xl pointer-events-none" />
 
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/[0.06] border border-white/10 text-xs font-mono text-neutral-300 mb-4">
               <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
