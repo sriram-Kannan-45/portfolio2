@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 44" width="200" height="44" fill="none">
+  <style>
+    .brand-wave { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-weight: 800; font-size: 26px; fill: #0f172a; letter-spacing: -0.03em; }
+    .brand-init { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-weight: 800; font-size: 26px; fill: #16a34a; letter-spacing: -0.03em; }
+    .brand-dot { fill: #16a34a; }
+  </style>
+  <text x="4" y="32" class="brand-wave">WAVE</text>
+  <text x="88" y="32" class="brand-init">INIT</text>
+  <circle cx="152" cy="29" r="3.5" class="brand-dot" />
+</svg>

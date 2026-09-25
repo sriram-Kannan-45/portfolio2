@@ -1,0 +1,112 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --background: #050505;
+    --background-secondary: #0b0b0d;
+    --surface-card: #0e0e13;
+    --surface-hover: #161620;
+    --border-subtle: #1c1c24;
+    --border-accent: rgba(255, 255, 255, 0.12);
+    --foreground: #f3f4f6;
+    --foreground-muted: #9ca3af;
+    --accent-emerald: #16a34a;
+    --accent-emerald-bright: #22c55e;
+    --accent-titanium: #d1d5db;
+  }
+
+  * {
+    border-color: var(--border-subtle);
+    box-sizing: border-box;
+  }
+
+  html {
+    background-color: var(--background);
+    color: var(--foreground);
+    scroll-behavior: smooth;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    overflow-x: hidden;
+    min-height: 100vh;
+    selection-background-color: rgba(22, 163, 74, 0.3);
+    selection-color: #ffffff;
+  }
+
+  /* Custom subtle scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #050505;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #23232c;
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #383846;
+  }
+}
+
+/* Glassmorphism & Metallic Surfaces */
+.glass-panel {
+  background: rgba(14, 14, 19, 0.72);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.glass-panel-hover {
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.glass-panel-hover:hover {
+  background: rgba(22, 22, 32, 0.88);
+  border-color: rgba(255, 255, 255, 0.18);
+  transform: translateY(-2px);
+}
+
+.metallic-text {
+  background: linear-gradient(135deg, #ffffff 0%, #d1d5db 50%, #9ca3af 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.metallic-border {
+  border: 1px solid transparent;
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+  background-image: linear-gradient(to bottom, #0e0e13, #0b0b0d),
+                    linear-gradient(135deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.02) 50%, rgba(22, 163, 74, 0.3) 100%);
+}
+
+.subtle-grid {
+  background-image: radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+.glow-emerald {
+  box-shadow: 0 0 35px -5px rgba(22, 163, 74, 0.25);
+}
+
+.glow-titanium {
+  box-shadow: 0 0 30px -5px rgba(255, 255, 255, 0.06);
+}
+
+/* Cinematic film grain overlay */
+.cinematic-vignette {
+  background: radial-gradient(circle at center, transparent 40%, rgba(5, 5, 5, 0.75) 85%, #050505 100%);
+}
+
+@keyframes pulseSlow {
+  0%, 100% { opacity: 0.3; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(1.02); }
+}
+
+.animate-pulse-slow {
+  animation: pulseSlow 6s ease-in-out infinite;
+}
