@@ -288,14 +288,14 @@ export default function HeroScrollVideo() {
       ScrollTrigger.create({
         trigger: containerRef.current,
         start: "top top",
-        end: "bottom bottom",
+        end: () => `+=${Math.round(window.innerHeight * 5.5)}`,
         pin: pinSectionRef.current,
         pinSpacing: true,
         anticipatePin: 1,
-        scrub: 0.5, // Cinematic smooth scrub damping to prevent abrupt fast scrolling
+        scrub: 0.4, // Responsive cinematic scrub that finishes at the exact end of scroll
         onUpdate: (self) => {
           const progress = Math.max(0, Math.min(1, self.progress));
-          const targetIndex = Math.round(progress * (TOTAL_FRAMES - 1));
+          const targetIndex = Math.min(TOTAL_FRAMES - 1, Math.round(progress * (TOTAL_FRAMES - 1)));
 
           targetFrameRef.current = targetIndex;
 
@@ -341,7 +341,7 @@ export default function HeroScrollVideo() {
       ref={containerRef}
       id="hero"
       className="relative w-full bg-[#050505] text-white"
-      style={{ height: prefersReducedMotion ? "100vh" : "750vh" }}
+      style={{ height: prefersReducedMotion ? "100vh" : "auto" }}
       aria-label="Cinematic Awakening Experience"
     >
       {/* Background Audio */}
