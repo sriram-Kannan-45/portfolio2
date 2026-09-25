@@ -222,16 +222,22 @@ export default function HeroScrollVideo() {
     };
   }, [handleResize, preloadNeighborhood, requestFrame, syncCanvasDimensions, paintFrameToCanvas]);
 
+  // Ratio of total scroll dedicated to video playback before holding on the final frame
+  const VIDEO_PLAYBACK_RATIO = 0.75;
+
   // Update HUD text and metrics directly on the DOM (0 React re-renders during active scroll)
   const updateHUD = useCallback((progress: number) => {
-    // 1. Timecode display
-    const time = (progress * VIDEO_DURATION).toFixed(1);
+    const videoProgress = Math.min(1, Math.max(0, progress / VIDEO_PLAYBACK_RATIO));
+    const isVideoDone = progress >= VIDEO_PLAYBACK_RATIO;
+
+    // 1. Timecode display (tracks video playback to 10.0s)
+    const time = (videoProgress * VIDEO_DURATION).toFixed(1);
     if (timeCodeRef.current) {
       timeCodeRef.current.textContent = `${time}s`;
     }
 
-    // 2. Timeline bar & percentage
-    const pct = Math.round(progress * 100);
+    // 2. Timeline bar & percentage (tracks video completion)
+    const pct = Math.round(videoProgress * 100);
     if (percentageRef.current) {
       percentageRef.current.textContent = `${pct}%`;
     }
@@ -242,35 +248,37 @@ export default function HeroScrollVideo() {
     // 3. Scroll prompt instruction text
     if (scrollPromptRef.current) {
       const prompt =
-        progress < 0.2
+        videoProgress < 0.2
           ? "Scroll down to advance awakening"
-          : progress < 0.75
+          : !isVideoDone
           ? "Keep scrolling — awakening in progress"
-          : "Tie adjusted — scroll forward to explore portfolio";
+          : "Awakening complete — scroll down to explore portfolio ↓";
       if (scrollPromptRef.current.textContent !== prompt) {
         scrollPromptRef.current.textContent = prompt;
       }
     }
 
-    // 4. Awakening stage indicators
+    // 4. Awakening stage indicators (synchronized with video frames)
     const stageIdx = PORTFOLIO_DATA.heroStages.findIndex(
-      (stage) => progress >= stage.scrollRange[0] && progress <= stage.scrollRange[1]
+      (stage) => videoProgress >= stage.scrollRange[0] && videoProgress <= stage.scrollRange[1]
     );
-    const activeIdx = stageIdx !== -1 ? stageIdx : progress < 0.5 ? 0 : PORTFOLIO_DATA.heroStages.length - 1;
-    if (activeIdx !== lastStageIndexRef.current) {
+    const activeIdx = stageIdx !== -1 ? stageIdx : videoProgress < 0.5 ? 0 : PORTFOLIO_DATA.heroStages.length - 1;
+    if (activeIdx !== lastStageIndexRef.current || isVideoDone) {
       lastStageIndexRef.current = activeIdx;
       const stage = PORTFOLIO_DATA.heroStages[activeIdx];
       if (stageBadgeRef.current) {
-        stageBadgeRef.current.textContent = `${stage.indicator} — ${stage.title}`;
+        stageBadgeRef.current.textContent = isVideoDone
+          ? "05 / 05 — AWAKENING COMPLETE"
+          : `${stage.indicator} — ${stage.title}`;
       }
       if (stageDescRef.current) {
         stageDescRef.current.textContent = stage.desc;
       }
     }
 
-    // 5. Final Hero Reveal Panel (tie adjustment onwards: 0.75 - 1.0)
+    // 5. Final Hero Reveal Panel (only reveals AFTER full video frames are completely done!)
     if (heroRevealRef.current) {
-      if (progress >= 0.75) {
+      if (isVideoDone) {
         heroRevealRef.current.classList.remove("opacity-0", "translate-y-8", "pointer-events-none");
         heroRevealRef.current.classList.add("opacity-100", "translate-y-0", "pointer-events-auto");
       } else {
@@ -288,14 +296,16 @@ export default function HeroScrollVideo() {
       ScrollTrigger.create({
         trigger: containerRef.current,
         start: "top top",
-        end: () => `+=${Math.round(window.innerHeight * 5.5)}`,
+        end: () => `+=${Math.round(window.innerHeight * 6.0)}`,
         pin: pinSectionRef.current,
         pinSpacing: true,
         anticipatePin: 1,
-        scrub: 0.4, // Responsive cinematic scrub that finishes at the exact end of scroll
+        scrub: 0.4, // Responsive cinematic scrub
         onUpdate: (self) => {
           const progress = Math.max(0, Math.min(1, self.progress));
-          const targetIndex = Math.min(TOTAL_FRAMES - 1, Math.round(progress * (TOTAL_FRAMES - 1)));
+          // Map 0 to VIDEO_PLAYBACK_RATIO across all 240 frames; hold frame 239 for the remaining runway
+          const videoProgress = Math.min(1, Math.max(0, progress / VIDEO_PLAYBACK_RATIO));
+          const targetIndex = Math.min(TOTAL_FRAMES - 1, Math.round(videoProgress * (TOTAL_FRAMES - 1)));
 
           targetFrameRef.current = targetIndex;
 
@@ -425,10 +435,10 @@ export default function HeroScrollVideo() {
           </div>
         </div>
 
-        {/* Bottom Hero Reveal Area: Smoothly reveals at the final tie-adjustment moment */}
+        {/* Bottom Hero Reveal Area: Smoothly reveals after full video frames are done */}
         <div
           ref={heroRevealRef}
-          className={`relative z-10 pb-12 sm:pb-16 px-4 sm:px-8 max-w-7xl mx-auto w-full transition-all duration-700 ${
+          className={`relative z-10 pb-8 sm:pb-12 px-4 sm:px-8 max-w-7xl mx-auto w-full transition-all duration-700 ease-out ${
             prefersReducedMotion
               ? "opacity-100 translate-y-0 pointer-events-auto"
               : "opacity-0 translate-y-8 pointer-events-none"
