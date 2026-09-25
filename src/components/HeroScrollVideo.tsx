@@ -10,7 +10,6 @@ import {
   Sparkles,
   Volume2,
   VolumeX,
-  Zap,
 } from "lucide-react";
 
 // Register ScrollTrigger safely in browser
@@ -33,11 +32,8 @@ export default function HeroScrollVideo() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
 
-  // HUD and Content direct DOM refs (bypass React state on scroll ticks)
+  // Direct DOM refs for high-performance scroll scrub
   const heroRevealRef = useRef<HTMLDivElement>(null);
-  const stageBadgeRef = useRef<HTMLSpanElement>(null);
-  const stageDescRef = useRef<HTMLParagraphElement>(null);
-  const timeCodeRef = useRef<HTMLSpanElement>(null);
   const scrollPromptRef = useRef<HTMLSpanElement>(null);
   const timelineBarRef = useRef<HTMLDivElement>(null);
   const percentageRef = useRef<HTMLSpanElement>(null);
@@ -53,7 +49,6 @@ export default function HeroScrollVideo() {
   const targetFrameRef = useRef<number>(0);
   const lastDrawnIndexRef = useRef<number>(-1);
   const rafPendingRef = useRef<boolean>(false);
-  const lastStageIndexRef = useRef<number>(-1);
 
   // Format frame asset paths responsively
   const getFrameUrl = useCallback((index: number, mobileMode: boolean) => {
@@ -230,13 +225,7 @@ export default function HeroScrollVideo() {
     const videoProgress = Math.min(1, Math.max(0, progress / VIDEO_PLAYBACK_RATIO));
     const isVideoDone = progress >= VIDEO_PLAYBACK_RATIO;
 
-    // 1. Timecode display (tracks video playback to 10.0s)
-    const time = (videoProgress * VIDEO_DURATION).toFixed(1);
-    if (timeCodeRef.current) {
-      timeCodeRef.current.textContent = `${time}s`;
-    }
-
-    // 2. Timeline bar & percentage (tracks video completion)
+    // 1. Timeline bar & percentage (tracks video completion)
     const pct = Math.round(videoProgress * 100);
     if (percentageRef.current) {
       percentageRef.current.textContent = `${pct}%`;
@@ -245,7 +234,7 @@ export default function HeroScrollVideo() {
       timelineBarRef.current.style.width = `${pct}%`;
     }
 
-    // 3. Scroll prompt instruction text
+    // 2. Scroll prompt instruction text
     if (scrollPromptRef.current) {
       const prompt =
         videoProgress < 0.2
@@ -258,25 +247,7 @@ export default function HeroScrollVideo() {
       }
     }
 
-    // 4. Awakening stage indicators (synchronized with video frames)
-    const stageIdx = PORTFOLIO_DATA.heroStages.findIndex(
-      (stage) => videoProgress >= stage.scrollRange[0] && videoProgress <= stage.scrollRange[1]
-    );
-    const activeIdx = stageIdx !== -1 ? stageIdx : videoProgress < 0.5 ? 0 : PORTFOLIO_DATA.heroStages.length - 1;
-    if (activeIdx !== lastStageIndexRef.current || isVideoDone) {
-      lastStageIndexRef.current = activeIdx;
-      const stage = PORTFOLIO_DATA.heroStages[activeIdx];
-      if (stageBadgeRef.current) {
-        stageBadgeRef.current.textContent = isVideoDone
-          ? "05 / 05 — AWAKENING COMPLETE"
-          : `${stage.indicator} — ${stage.title}`;
-      }
-      if (stageDescRef.current) {
-        stageDescRef.current.textContent = stage.desc;
-      }
-    }
-
-    // 5. Final Hero Reveal Panel (only reveals AFTER full video frames are completely done!)
+    // 3. Final Hero Reveal Panel (only reveals AFTER full video frames are completely done!)
     if (heroRevealRef.current) {
       if (isVideoDone) {
         heroRevealRef.current.classList.remove("opacity-0", "translate-y-8", "pointer-events-none");
@@ -344,8 +315,6 @@ export default function HeroScrollVideo() {
     setIsMuted(nextMuted);
   };
 
-  const initialStage = PORTFOLIO_DATA.heroStages[0];
-
   return (
     <section
       ref={containerRef}
@@ -360,7 +329,7 @@ export default function HeroScrollVideo() {
       {/* Pinned Viewport Container (GSAP handles pinning) */}
       <div
         ref={pinSectionRef}
-        className="w-full h-screen overflow-hidden flex flex-col justify-between relative"
+        className="w-full h-screen overflow-hidden flex flex-col justify-end relative"
       >
         {/* Full-screen Media Layer (Hardware-Accelerated 1:1 Canvas) */}
         <div className="absolute inset-0 z-0 bg-black flex items-center justify-center overflow-hidden">
@@ -380,65 +349,10 @@ export default function HeroScrollVideo() {
           <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-[#050505]/80 to-transparent pointer-events-none" />
         </div>
 
-        {/* Top HUD: Awakening Stage & Scrub Telemetry */}
-        <div className="relative z-10 pt-20 px-4 sm:px-8 max-w-7xl mx-auto w-full flex items-start justify-between">
-          {/* Phase Badge & Stage Title */}
-          <div className="flex flex-col gap-1.5 backdrop-blur-md bg-black/40 border border-white/10 px-4 py-2.5 rounded-xl">
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span
-                ref={stageBadgeRef}
-                className="text-[11px] font-mono tracking-widest text-emerald-400 uppercase"
-              >
-                {initialStage.indicator} — {initialStage.title}
-              </span>
-            </div>
-            <p ref={stageDescRef} className="text-xs text-neutral-300 max-w-sm hidden sm:block">
-              {initialStage.desc}
-            </p>
-          </div>
-
-          {/* Telemetry & Controls */}
-          <div className="flex items-center gap-2">
-            {/* Engine Telemetry Pill */}
-            <div className="hidden md:flex items-center gap-2 backdrop-blur-md bg-black/40 border border-white/10 px-3 py-2 rounded-xl text-[11px] font-mono text-neutral-300">
-              <Zap className="w-3.5 h-3.5 text-emerald-400" />
-              <span className="text-white font-semibold">24 FPS Cinematic Canvas</span>
-              <span className="text-neutral-500">|</span>
-              <span className="text-emerald-400">
-                {isMobile ? "Mobile (720x405)" : "Native 720p (1280x720)"}
-              </span>
-            </div>
-
-            {/* Audio Toggle */}
-            <button
-              type="button"
-              onClick={toggleMute}
-              className="backdrop-blur-md bg-black/40 border border-white/10 hover:border-white/20 p-2.5 rounded-xl text-neutral-300 hover:text-white transition-colors cursor-pointer"
-              title={isMuted ? "Unmute Cinematic Audio" : "Mute Audio"}
-              aria-label="Toggle Audio"
-            >
-              {isMuted ? (
-                <VolumeX className="w-4 h-4 text-neutral-400" />
-              ) : (
-                <Volume2 className="w-4 h-4 text-emerald-400" />
-              )}
-            </button>
-
-            {/* Time Code Pill */}
-            <div className="backdrop-blur-md bg-black/40 border border-white/10 px-3 py-2 rounded-xl text-[11px] font-mono text-neutral-300">
-              <span ref={timeCodeRef} className="text-white font-bold">
-                0.0s
-              </span>
-              <span className="text-neutral-500"> / {VIDEO_DURATION.toFixed(1)}s</span>
-            </div>
-          </div>
-        </div>
-
         {/* Bottom Hero Reveal Area: Smoothly reveals after full video frames are done */}
         <div
           ref={heroRevealRef}
-          className={`relative z-10 pb-8 sm:pb-12 px-4 sm:px-8 max-w-7xl mx-auto w-full transition-all duration-700 ease-out ${
+          className={`relative z-10 pb-6 sm:pb-8 px-4 sm:px-8 max-w-7xl mx-auto w-full transition-all duration-700 ease-out ${
             prefersReducedMotion
               ? "opacity-100 translate-y-0 pointer-events-auto"
               : "opacity-0 translate-y-8 pointer-events-none"
@@ -518,8 +432,21 @@ export default function HeroScrollVideo() {
             </span>
           </div>
 
-          {/* Timeline Bar */}
+          {/* Audio Toggle & Timeline Bar */}
           <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={toggleMute}
+              className="backdrop-blur-md bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 p-1.5 rounded-lg text-neutral-400 hover:text-white transition-colors cursor-pointer"
+              title={isMuted ? "Unmute Cinematic Audio" : "Mute Audio"}
+              aria-label="Toggle Audio"
+            >
+              {isMuted ? (
+                <VolumeX className="w-3.5 h-3.5" />
+              ) : (
+                <Volume2 className="w-3.5 h-3.5 text-emerald-400" />
+              )}
+            </button>
             <div className="w-32 sm:w-48 h-1.5 bg-white/10 rounded-full overflow-hidden">
               <div
                 ref={timelineBarRef}
