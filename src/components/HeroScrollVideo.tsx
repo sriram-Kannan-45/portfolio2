@@ -292,7 +292,7 @@ export default function HeroScrollVideo() {
         pin: pinSectionRef.current,
         pinSpacing: true,
         anticipatePin: 1,
-        scrub: 0.05, // Instant 1:1 scrub response
+        scrub: 0.5, // Cinematic smooth scrub damping to prevent abrupt fast scrolling
         onUpdate: (self) => {
           const progress = Math.max(0, Math.min(1, self.progress));
           const targetIndex = Math.round(progress * (TOTAL_FRAMES - 1));
@@ -341,7 +341,7 @@ export default function HeroScrollVideo() {
       ref={containerRef}
       id="hero"
       className="relative w-full bg-[#050505] text-white"
-      style={{ height: prefersReducedMotion ? "100vh" : "450vh" }}
+      style={{ height: prefersReducedMotion ? "100vh" : "750vh" }}
       aria-label="Cinematic Awakening Experience"
     >
       {/* Background Audio */}
