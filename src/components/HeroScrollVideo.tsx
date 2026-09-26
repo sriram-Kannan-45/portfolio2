@@ -8,8 +8,6 @@ import {
   ChevronDown,
   ArrowUpRight,
   Sparkles,
-  Volume2,
-  VolumeX,
 } from "lucide-react";
 
 // Register ScrollTrigger safely in browser
@@ -18,83 +16,134 @@ if (typeof window !== "undefined") {
 }
 
 const TOTAL_FRAMES = 240;
-const VIDEO_DURATION = 10.0;
 
-// Exact native resolutions of extracted WebP frames
+// Master native resolution of extracted HD WebP frames
 const DESKTOP_WIDTH = 1280;
 const DESKTOP_HEIGHT = 720;
-const MOBILE_WIDTH = 720;
-const MOBILE_HEIGHT = 405;
+const MOBILE_WIDTH = 1280;
+const MOBILE_HEIGHT = 720;
+
+// Ratio of total scroll dedicated to video playback before holding on the final frame
+const VIDEO_PLAYBACK_RATIO = 0.75;
 
 export default function HeroScrollVideo() {
   const containerRef = useRef<HTMLDivElement>(null);
   const pinSectionRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
+  const posterRef = useRef<HTMLImageElement>(null);
 
-  // Direct DOM refs for high-performance scroll scrub
+  // Direct DOM refs for high-performance scroll scrub (0 React re-renders)
   const heroRevealRef = useRef<HTMLDivElement>(null);
-  const scrollPromptRef = useRef<HTMLSpanElement>(null);
-  const timelineBarRef = useRef<HTMLDivElement>(null);
-  const percentageRef = useRef<HTMLSpanElement>(null);
 
-  // Reactive UI state only for user interactive actions
-  const [isMuted, setIsMuted] = useState(true);
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
 
-  // Frame Cache & Drawing tracking
+  // Performance tracking refs (avoiding React re-renders)
+  const isMobileRef = useRef<boolean>(false);
   const loadedFramesRef = useRef<Map<number, HTMLImageElement>>(new Map());
   const requestedFramesRef = useRef<Set<number>>(new Set());
   const targetFrameRef = useRef<number>(0);
   const lastDrawnIndexRef = useRef<number>(-1);
   const rafPendingRef = useRef<boolean>(false);
+  const hudRafPendingRef = useRef<boolean>(false);
+  const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
+  const lastPreloadedFrameRef = useRef<number>(-999);
 
-  // Format frame asset paths responsively
-  const getFrameUrl = useCallback((index: number, mobileMode: boolean) => {
+  // HUD state tracking refs to eliminate redundant DOM mutations
+  const heroRevealedRef = useRef<boolean>(false);
+  const pendingProgressRef = useRef<number>(0);
+
+  // Master frame asset paths: Always serve crisp HD 1280x720 frames on both desktop & mobile
+  const getFrameUrl = useCallback((index: number) => {
     const frameNumber = String(index + 1).padStart(4, "0");
-    const subfolder = mobileMode ? "mobile" : "desktop";
-    return `/frames/${subfolder}/frame_${frameNumber}.webp`;
+    return `/frames/desktop/frame_${frameNumber}.webp`;
   }, []);
 
-  // Fast 1:1 hardware-accelerated canvas paint
+  // 1:1 hardware-accelerated canvas paint with O(1) local fallback lookup
   const paintFrameToCanvas = useCallback((indexToPaint: number) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    // Direct lookup or find nearest loaded frame so screen is NEVER black
+    // Direct lookup first
     let img = loadedFramesRef.current.get(indexToPaint);
     let paintedIdx = indexToPaint;
 
-    if (!img) {
-      let minDistance = Infinity;
-      let closestIdx = -1;
-      for (const [cachedIdx, cachedImg] of loadedFramesRef.current.entries()) {
-        if (cachedImg && cachedImg.complete && cachedImg.naturalWidth > 0) {
-          const dist = Math.abs(cachedIdx - indexToPaint);
-          if (dist < minDistance) {
-            minDistance = dist;
-            closestIdx = cachedIdx;
+    // Fast local neighborhood lookup (checks closest frames first within +/- 25 range)
+    if (!img || !img.complete || img.naturalWidth === 0) {
+      img = undefined;
+      for (let offset = 1; offset <= 25; offset++) {
+        const lower = indexToPaint - offset;
+        if (lower >= 0) {
+          const candidate = loadedFramesRef.current.get(lower);
+          if (candidate && candidate.complete && candidate.naturalWidth > 0) {
+            img = candidate;
+            paintedIdx = lower;
+            break;
+          }
+        }
+        const upper = indexToPaint + offset;
+        if (upper < TOTAL_FRAMES) {
+          const candidate = loadedFramesRef.current.get(upper);
+          if (candidate && candidate.complete && candidate.naturalWidth > 0) {
+            img = candidate;
+            paintedIdx = upper;
+            break;
           }
         }
       }
-      if (closestIdx !== -1) {
-        img = loadedFramesRef.current.get(closestIdx);
-        paintedIdx = closestIdx;
+
+      // If still not found, fallback to last painted frame
+      if (!img && lastDrawnIndexRef.current >= 0) {
+        img = loadedFramesRef.current.get(lastDrawnIndexRef.current);
+        paintedIdx = lastDrawnIndexRef.current;
       }
     }
 
     if (!img || !img.complete || img.naturalWidth === 0) return;
 
-    const ctx = canvas.getContext("2d", { alpha: false });
+    // Match canvas internal resolution to natural image resolution
+    if (canvas.width !== img.naturalWidth || canvas.height !== img.naturalHeight) {
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      ctxRef.current = null;
+    }
+
+    if (!ctxRef.current || ctxRef.current.canvas !== canvas) {
+      // Use standard alpha:false context without desynchronized
+      ctxRef.current = canvas.getContext("2d", { alpha: false });
+      if (ctxRef.current) {
+        ctxRef.current.imageSmoothingEnabled = true;
+        ctxRef.current.imageSmoothingQuality = "high";
+      }
+    }
+    const ctx = ctxRef.current;
     if (!ctx) return;
 
-    // 1:1 exact native blit (1280x720 or 720x405) - CSS object-cover handles display scaling
+    // Exact blit to canvas internal dimensions
     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
     lastDrawnIndexRef.current = paintedIdx;
+
+    // Hide fallback poster once canvas has painted successfully
+    if (posterRef.current && posterRef.current.style.opacity !== "0") {
+      posterRef.current.style.opacity = "0";
+    }
   }, []);
 
-  // Request a single frame via browser standard Image loader (cached by browser HTTP layer)
+  // Memory management: Prune distant frames on mobile to prevent memory pressure
+  const pruneMobileFrameCache = useCallback((currentCenter: number) => {
+    if (!isMobileRef.current || loadedFramesRef.current.size < 70) return;
+    const KEEP_RADIUS = 30;
+    for (const key of Array.from(loadedFramesRef.current.keys())) {
+      // Always keep frame 0 and last frame
+      if (key === 0 || key === TOTAL_FRAMES - 1) continue;
+      if (Math.abs(key - currentCenter) > KEEP_RADIUS) {
+        loadedFramesRef.current.delete(key);
+        requestedFramesRef.current.delete(key);
+      }
+    }
+  }, []);
+
+  // Bulletproof asynchronous image loader (attaches event listeners BEFORE src to avoid cache race)
   const requestFrame = useCallback(
     (index: number, mobileMode: boolean, onLoaded?: () => void) => {
       if (index < 0 || index >= TOTAL_FRAMES) return;
@@ -102,8 +151,8 @@ export default function HeroScrollVideo() {
 
       requestedFramesRef.current.add(index);
       const img = new Image();
-      img.src = getFrameUrl(index, mobileMode);
-      img.onload = () => {
+
+      const commitFrame = () => {
         loadedFramesRef.current.set(index, img);
         if (onLoaded) {
           onLoaded();
@@ -111,18 +160,35 @@ export default function HeroScrollVideo() {
           paintFrameToCanvas(targetFrameRef.current);
         }
       };
+
+      // CRITICAL: Attach handlers BEFORE setting src so cached loads never fire before handlers are attached
+      img.onload = () => {
+        commitFrame();
+        // Warm texture cache in background without blocking display
+        if (typeof img.decode === "function") {
+          img.decode().catch(() => {});
+        }
+      };
+
       img.onerror = () => {
         requestedFramesRef.current.delete(index);
       };
+
+      img.src = getFrameUrl(index);
+
+      // Handle synchronously cached images
+      if (img.complete && img.naturalWidth > 0) {
+        commitFrame();
+      }
     },
     [getFrameUrl, paintFrameToCanvas]
   );
 
-  // Progressive directional preloader (prioritizes target and immediate neighborhood)
+  // Progressive directional preloader (prioritizes current frame and immediate neighborhood)
   const preloadNeighborhood = useCallback(
     (center: number, direction: number, mobileMode: boolean) => {
-      const WINDOW_AHEAD = 16;
-      const WINDOW_BEHIND = 6;
+      const WINDOW_AHEAD = mobileMode ? 14 : 22;
+      const WINDOW_BEHIND = mobileMode ? 6 : 10;
 
       // 1. Target frame priority
       requestFrame(center, mobileMode, () => paintFrameToCanvas(center));
@@ -147,32 +213,40 @@ export default function HeroScrollVideo() {
           if (idx < TOTAL_FRAMES) requestFrame(idx, mobileMode);
         }
       }
+
+      // 3. Prune old frames on mobile
+      pruneMobileFrameCache(center);
     },
-    [requestFrame, paintFrameToCanvas]
+    [requestFrame, paintFrameToCanvas, pruneMobileFrameCache]
   );
 
-  // Set internal canvas resolution to match exact native frames (no upscaling lag)
-  const syncCanvasDimensions = useCallback((mobileMode: boolean) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+  // Sync canvas resolution to exact frame dimensions imperatively
+  const syncCanvasDimensions = useCallback(
+    (mobileMode: boolean) => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
 
-    const nativeW = mobileMode ? MOBILE_WIDTH : DESKTOP_WIDTH;
-    const nativeH = mobileMode ? MOBILE_HEIGHT : DESKTOP_HEIGHT;
+      const nativeW = mobileMode ? MOBILE_WIDTH : DESKTOP_WIDTH;
+      const nativeH = mobileMode ? MOBILE_HEIGHT : DESKTOP_HEIGHT;
 
-    if (canvas.width !== nativeW || canvas.height !== nativeH) {
-      canvas.width = nativeW;
-      canvas.height = nativeH;
-      // Repaint current frame on dimension change
-      paintFrameToCanvas(targetFrameRef.current);
-    }
-  }, [paintFrameToCanvas]);
+      if (canvas.width !== nativeW || canvas.height !== nativeH) {
+        canvas.width = nativeW;
+        canvas.height = nativeH;
+        ctxRef.current = null;
+        paintFrameToCanvas(targetFrameRef.current);
+      }
+    },
+    [paintFrameToCanvas]
+  );
 
   // Handle Resize and Device Check
   const handleResize = useCallback(() => {
     const mobileCheck =
       typeof window !== "undefined" &&
-      (window.innerWidth < 768 || ("ontouchstart" in window && window.innerWidth < 1024));
-    setIsMobile(mobileCheck);
+      (window.innerWidth < 768 ||
+        (("ontouchstart" in window || navigator.maxTouchPoints > 0) &&
+          window.innerWidth < 1024));
+    isMobileRef.current = mobileCheck;
     syncCanvasDimensions(mobileCheck);
   }, [syncCanvasDimensions]);
 
@@ -183,8 +257,11 @@ export default function HeroScrollVideo() {
     const handleMotion = (e: MediaQueryListEvent) => setPrefersReducedMotion(e.matches);
     motionQuery.addEventListener("change", handleMotion);
 
-    const mobileCheck = window.innerWidth < 768 || ("ontouchstart" in window && window.innerWidth < 1024);
-    setIsMobile(mobileCheck);
+    const mobileCheck =
+      window.innerWidth < 768 ||
+      (("ontouchstart" in window || navigator.maxTouchPoints > 0) &&
+        window.innerWidth < 1024);
+    isMobileRef.current = mobileCheck;
     syncCanvasDimensions(mobileCheck);
 
     window.addEventListener("resize", handleResize, { passive: true });
@@ -196,91 +273,127 @@ export default function HeroScrollVideo() {
 
     requestFrame(initialFrame, mobileCheck, () => {
       paintFrameToCanvas(initialFrame);
-      // Preload initial batch
       if (!motionQuery.matches) {
         preloadNeighborhood(initialFrame, 1, mobileCheck);
       }
     });
 
-    // Background preload the rest smoothly during idle periods
-    const preloadTimer = setTimeout(() => {
-      for (let i = 0; i < TOTAL_FRAMES; i += 4) {
-        requestFrame(i, mobileCheck);
+    // Progressive background preloader during browser idle slices
+    let idleHandle: number | ReturnType<typeof setTimeout>;
+    let currentBatchIndex = 0;
+    const scheduleNextIdleBatch = () => {
+      const BATCH_SIZE = mobileCheck ? 8 : 16;
+      const end = Math.min(currentBatchIndex + BATCH_SIZE, TOTAL_FRAMES);
+      for (let i = currentBatchIndex; i < end; i++) {
+        requestFrame(i, isMobileRef.current);
       }
-    }, 1500);
+      currentBatchIndex = end;
+
+      if (currentBatchIndex < TOTAL_FRAMES) {
+        if (typeof requestIdleCallback !== "undefined") {
+          idleHandle = requestIdleCallback(scheduleNextIdleBatch, { timeout: 1200 });
+        } else {
+          idleHandle = setTimeout(scheduleNextIdleBatch, 100);
+        }
+      }
+    };
+
+    if (typeof requestIdleCallback !== "undefined") {
+      idleHandle = requestIdleCallback(scheduleNextIdleBatch, { timeout: 1500 });
+    } else {
+      idleHandle = setTimeout(scheduleNextIdleBatch, 800);
+    }
 
     return () => {
       motionQuery.removeEventListener("change", handleMotion);
       window.removeEventListener("resize", handleResize);
       window.removeEventListener("orientationchange", handleResize);
-      clearTimeout(preloadTimer);
+      if (typeof requestIdleCallback !== "undefined") {
+        cancelIdleCallback(idleHandle as number);
+      } else {
+        clearTimeout(idleHandle as ReturnType<typeof setTimeout>);
+      }
     };
   }, [handleResize, preloadNeighborhood, requestFrame, syncCanvasDimensions, paintFrameToCanvas]);
 
-  // Ratio of total scroll dedicated to video playback before holding on the final frame
-  const VIDEO_PLAYBACK_RATIO = 0.75;
-
-  // Update HUD text and metrics directly on the DOM (0 React re-renders during active scroll)
+  // Update state upon video scroll completion directly with dirty-checking
   const updateHUD = useCallback((progress: number) => {
-    const videoProgress = Math.min(1, Math.max(0, progress / VIDEO_PLAYBACK_RATIO));
-    const isVideoDone = progress >= VIDEO_PLAYBACK_RATIO;
+    pendingProgressRef.current = progress;
+    if (hudRafPendingRef.current) return;
+    hudRafPendingRef.current = true;
 
-    // 1. Timeline bar & percentage (tracks video completion)
-    const pct = Math.round(videoProgress * 100);
-    if (percentageRef.current) {
-      percentageRef.current.textContent = `${pct}%`;
-    }
-    if (timelineBarRef.current) {
-      timelineBarRef.current.style.width = `${pct}%`;
-    }
+    requestAnimationFrame(() => {
+      hudRafPendingRef.current = false;
+      const p = pendingProgressRef.current;
+      const isVideoDone = p >= VIDEO_PLAYBACK_RATIO;
 
-    // 2. Scroll prompt instruction text
-    if (scrollPromptRef.current) {
-      const prompt =
-        videoProgress < 0.2
-          ? "Scroll down to advance awakening"
-          : !isVideoDone
-          ? "Keep scrolling — awakening in progress"
-          : "Awakening complete — scroll down to explore portfolio ↓";
-      if (scrollPromptRef.current.textContent !== prompt) {
-        scrollPromptRef.current.textContent = prompt;
+      // Final Hero Reveal Panel & Navbar visibility trigger
+      if (heroRevealRef.current && heroRevealedRef.current !== isVideoDone) {
+        heroRevealedRef.current = isVideoDone;
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(
+            new CustomEvent("videoScrolledChange", { detail: { isVideoDone } })
+          );
+        }
+        if (isVideoDone) {
+          heroRevealRef.current.classList.remove(
+            "opacity-0",
+            "translate-y-8",
+            "pointer-events-none"
+          );
+          heroRevealRef.current.classList.add(
+            "opacity-100",
+            "translate-y-0",
+            "pointer-events-auto"
+          );
+        } else {
+          heroRevealRef.current.classList.remove(
+            "opacity-100",
+            "translate-y-0",
+            "pointer-events-auto"
+          );
+          heroRevealRef.current.classList.add(
+            "opacity-0",
+            "translate-y-8",
+            "pointer-events-none"
+          );
+        }
       }
-    }
-
-    // 3. Final Hero Reveal Panel (only reveals AFTER full video frames are completely done!)
-    if (heroRevealRef.current) {
-      if (isVideoDone) {
-        heroRevealRef.current.classList.remove("opacity-0", "translate-y-8", "pointer-events-none");
-        heroRevealRef.current.classList.add("opacity-100", "translate-y-0", "pointer-events-auto");
-      } else {
-        heroRevealRef.current.classList.remove("opacity-100", "translate-y-0", "pointer-events-auto");
-        heroRevealRef.current.classList.add("opacity-0", "translate-y-8", "pointer-events-none");
-      }
-    }
+    });
   }, []);
 
-  // GSAP ScrollTrigger Setup
+  // GSAP ScrollTrigger Setup with Smooth Interpolation & Scrub Damping
   useEffect(() => {
     if (!containerRef.current || !pinSectionRef.current || prefersReducedMotion) return;
 
     const ctx = gsap.context(() => {
-      ScrollTrigger.create({
-        trigger: containerRef.current,
-        start: "top top",
-        end: () => `+=${Math.round(window.innerHeight * 6.0)}`,
-        pin: pinSectionRef.current,
-        pinSpacing: true,
-        anticipatePin: 1,
-        scrub: 0.4, // Responsive cinematic scrub
-        onUpdate: (self) => {
-          const progress = Math.max(0, Math.min(1, self.progress));
-          // Map 0 to VIDEO_PLAYBACK_RATIO across all 240 frames; hold frame 239 for the remaining runway
-          const videoProgress = Math.min(1, Math.max(0, progress / VIDEO_PLAYBACK_RATIO));
-          const targetIndex = Math.min(TOTAL_FRAMES - 1, Math.round(videoProgress * (TOTAL_FRAMES - 1)));
+      // Playhead proxy object smoothly scrubbed by GSAP
+      const playhead = { frame: 0, progress: 0 };
+
+      gsap.to(playhead, {
+        frame: TOTAL_FRAMES - 1,
+        progress: 1,
+        ease: "none",
+        scrollTrigger: {
+          trigger: containerRef.current,
+          start: "top top",
+          end: () => `+=${Math.round(window.innerHeight * 6.0)}`,
+          pin: pinSectionRef.current,
+          pinSpacing: true,
+          anticipatePin: 1,
+          scrub: 0.5,
+        },
+        onUpdate: () => {
+          const currentProgress = playhead.progress;
+          const videoProgress = Math.min(1, Math.max(0, currentProgress / VIDEO_PLAYBACK_RATIO));
+          const targetIndex = Math.min(
+            TOTAL_FRAMES - 1,
+            Math.max(0, Math.round(videoProgress * (TOTAL_FRAMES - 1)))
+          );
 
           targetFrameRef.current = targetIndex;
 
-          // Throttle painting through requestAnimationFrame for 60-120fps lock
+          // Paint locked to display refresh rate
           if (!rafPendingRef.current) {
             rafPendingRef.current = true;
             requestAnimationFrame(() => {
@@ -289,11 +402,16 @@ export default function HeroScrollVideo() {
             });
           }
 
-          // Direct DOM HUD update (0 React state overhead)
-          updateHUD(progress);
+          // Video completion check & Hero reveal
+          updateHUD(currentProgress);
 
-          // Preload neighborhood based on scrolling direction
-          preloadNeighborhood(targetIndex, self.direction || 1, isMobile);
+          // Directional preloading only when frame changes
+          const dist = Math.abs(targetIndex - lastPreloadedFrameRef.current);
+          if (dist >= 2) {
+            const dir = targetIndex >= lastPreloadedFrameRef.current ? 1 : -1;
+            lastPreloadedFrameRef.current = targetIndex;
+            preloadNeighborhood(targetIndex, dir, isMobileRef.current);
+          }
         },
       });
     }, containerRef);
@@ -301,55 +419,100 @@ export default function HeroScrollVideo() {
     return () => {
       ctx.revert();
     };
-  }, [updateHUD, preloadNeighborhood, paintFrameToCanvas, isMobile, prefersReducedMotion]);
+  }, [updateHUD, preloadNeighborhood, paintFrameToCanvas, prefersReducedMotion]);
 
-  // Audio Toggle
-  const toggleMute = () => {
-    if (!audioRef.current) return;
-    const nextMuted = !isMuted;
-    if (!nextMuted) {
-      audioRef.current.play().catch(() => {});
-    } else {
-      audioRef.current.pause();
-    }
-    setIsMuted(nextMuted);
-  };
+  // Automatic soundtrack audio playback when inside the website (no visible UI)
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    audio.volume = 0.8;
+    audio.muted = false;
+
+    // Attempt immediate autoplay
+    const tryAutoplay = () => {
+      audio
+        .play()
+        .catch(() => {
+          // If browser restricts initial unprompted autoplay,
+          // start audio immediately upon the very first user interaction (scroll, touch, click, wheel, key)
+          const onFirstInteraction = () => {
+            audio.play().catch(() => {});
+            window.removeEventListener("scroll", onFirstInteraction);
+            window.removeEventListener("pointerdown", onFirstInteraction);
+            window.removeEventListener("touchstart", onFirstInteraction);
+            window.removeEventListener("wheel", onFirstInteraction);
+            window.removeEventListener("keydown", onFirstInteraction);
+          };
+
+          window.addEventListener("scroll", onFirstInteraction, { passive: true });
+          window.addEventListener("pointerdown", onFirstInteraction, { passive: true });
+          window.addEventListener("touchstart", onFirstInteraction, { passive: true });
+          window.addEventListener("wheel", onFirstInteraction, { passive: true });
+          window.addEventListener("keydown", onFirstInteraction, { passive: true });
+        });
+    };
+
+    tryAutoplay();
+  }, []);
 
   return (
     <section
       ref={containerRef}
       id="hero"
-      className="relative w-full bg-[#050505] text-white"
+      className="relative z-10 w-full bg-[#050505] text-white"
       style={{ height: prefersReducedMotion ? "100vh" : "auto" }}
       aria-label="Cinematic Awakening Experience"
     >
-      {/* Background Audio */}
-      <audio ref={audioRef} src="/awakening_audio.mp3" loop preload="none" />
+      {/* Background Soundtrack Audio */}
+      <audio ref={audioRef} src="/awakening_audio.mp3" loop preload="auto" />
 
-      {/* Pinned Viewport Container (GSAP handles pinning) */}
+      {/* Pinned Viewport Container (h-screen with h-[100dvh] fallback for exact mobile browser viewport fit) */}
       <div
         ref={pinSectionRef}
-        className="w-full h-screen overflow-hidden flex flex-col justify-end relative"
+        className="w-full h-screen h-[100dvh] overflow-hidden flex flex-col justify-end relative z-10"
       >
-        {/* Full-screen Media Layer (Hardware-Accelerated 1:1 Canvas) */}
+        {/* Full-screen Media Layer (Hardware-Accelerated Canvas with Instant Fallback Poster) */}
         <div className="absolute inset-0 z-0 bg-black flex items-center justify-center overflow-hidden">
+          {/* Instant poster image — visible immediately so mobile screen is NEVER black before first frame render */}
+          <picture className="absolute inset-0 w-full h-full pointer-events-none">
+            <img
+              ref={posterRef}
+              src="/frames/desktop/frame_0001.webp"
+              alt="Awakening cinematic inception"
+              className="absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ease-out"
+              style={{
+                width: "100%",
+                height: "100%",
+                objectFit: "cover",
+                filter: "contrast(1.05) saturate(1.06) brightness(1.02)",
+              }}
+              fetchPriority="high"
+            />
+          </picture>
+
           <canvas
             ref={canvasRef}
-            width={isMobile ? MOBILE_WIDTH : DESKTOP_WIDTH}
-            height={isMobile ? MOBILE_HEIGHT : DESKTOP_HEIGHT}
+            width={DESKTOP_WIDTH}
+            height={DESKTOP_HEIGHT}
             className="absolute inset-0 w-full h-full object-cover pointer-events-none transition-[filter] duration-700 ease-out"
-            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+            style={{
+              width: "100%",
+              height: "100%",
+              objectFit: "cover",
+              filter: "contrast(1.05) saturate(1.06) brightness(1.02)",
+            }}
           />
 
           {/* Cinematic Vignette Overlay */}
           <div className="absolute inset-0 pointer-events-none cinematic-vignette" />
 
           {/* Gradient Overlays for Visual Depth */}
-          <div className="absolute inset-x-0 bottom-0 h-64 bg-gradient-to-t from-[#050505] via-[#050505]/70 to-transparent pointer-events-none" />
-          <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-[#050505]/80 to-transparent pointer-events-none" />
+          <div className="absolute inset-x-0 bottom-0 h-36 sm:h-56 bg-gradient-to-t from-[#050505] via-[#050505]/60 to-transparent pointer-events-none" />
+          <div className="absolute inset-x-0 top-0 h-20 sm:h-28 bg-gradient-to-b from-[#050505]/70 to-transparent pointer-events-none" />
         </div>
 
-        {/* Bottom Hero Reveal Area: Smoothly reveals after full video frames are done */}
+        {/* Bottom Hero Reveal Area: Positioned strictly in the bottom-left empty space to never obstruct the face */}
         <div
           ref={heroRevealRef}
           className={`relative z-10 pb-6 sm:pb-8 px-4 sm:px-8 max-w-7xl mx-auto w-full transition-all duration-700 ease-out ${
@@ -358,105 +521,63 @@ export default function HeroScrollVideo() {
               : "opacity-0 translate-y-8 pointer-events-none"
           }`}
         >
-          {/* Glass Card with clean, subtle 10px blur */}
+          {/* Glass Card: Compact size in bottom-left negative space */}
           <div
-            className="hero-glass-card p-6 sm:p-8 rounded-2xl max-w-2xl border border-white/15 shadow-2xl relative overflow-hidden"
+            className="hero-glass-card p-4 sm:p-5 rounded-xl max-w-sm sm:max-w-[400px] border border-white/15 shadow-2xl relative overflow-hidden backdrop-blur-md"
             style={{
-              backdropFilter: "blur(10px) saturate(135%)",
-              WebkitBackdropFilter: "blur(10px) saturate(135%)",
+              backdropFilter: "blur(12px) saturate(140%)",
+              WebkitBackdropFilter: "blur(12px) saturate(140%)",
             }}
           >
             {/* Subtle background glow */}
-            <div className="absolute -top-12 -right-12 w-48 h-48 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute -top-10 -right-10 w-36 h-36 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none" />
 
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/[0.06] border border-white/10 text-xs font-mono text-neutral-300 mb-4">
-              <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/[0.06] border border-white/10 text-[11px] font-mono text-neutral-300 mb-2">
+              <Sparkles className="w-3 h-3 text-emerald-400" />
               <span>Awakening Complete // Final Reveal</span>
             </div>
 
             {/* Identity & Subtitle */}
-            <h1 className="text-4xl sm:text-6xl font-black tracking-tight text-white mb-2 uppercase">
+            <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white mb-0.5 uppercase">
               SRIRAM K
             </h1>
-            <p className="text-sm sm:text-lg font-medium text-emerald-400 tracking-wide mb-3">
-              AI & Software Builder | Founder, Wave Init Solutions
+            <p className="text-xs sm:text-sm font-semibold text-emerald-400 tracking-wide mb-2">
+              AI &amp; Software Builder | Founder, Wave Init Solutions
             </p>
-            <p className="text-xs sm:text-sm text-neutral-300 leading-relaxed mb-6 max-w-2xl">
-              Transforming artificial intelligence, deep learning, and robust
-              software architecture into practical, scalable digital experiences.
-              From computer vision models to enterprise SaaS platforms.
+            <p className="text-xs text-neutral-300 leading-relaxed mb-3 max-w-xs sm:max-w-sm">
+              Transforming artificial intelligence, deep learning, and software architecture into practical, scalable digital experiences.
             </p>
 
-            {/* CTAs */}
-            <div className="flex flex-wrap items-center gap-3">
+            {/* CTAs: Compact, clean row in empty bottom-left space */}
+            <div className="flex flex-wrap items-center gap-2">
               <a
                 href="#projects"
-                className="px-5 py-2.5 rounded-xl bg-white text-black font-semibold text-xs sm:text-sm hover:bg-neutral-200 transition-all flex items-center gap-2 shadow-lg"
+                className="px-3 py-1.5 rounded-lg bg-white text-black font-semibold text-xs hover:bg-neutral-200 transition-all flex items-center gap-1.5 shadow-md"
                 id="hero-explore-work-cta"
               >
-                <span>Explore My Work</span>
-                <ChevronDown className="w-4 h-4" />
+                <span>Explore Work</span>
+                <ChevronDown className="w-3.5 h-3.5" />
               </a>
 
               <a
                 href={PORTFOLIO_DATA.links.waveInitSolutions}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs sm:text-sm transition-all flex items-center gap-2 shadow-lg group"
+                className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition-all flex items-center gap-1.5 shadow-md group"
                 id="hero-wave-init-cta"
               >
                 <span>Wave Init Solutions</span>
-                <ArrowUpRight className="w-4 h-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                <ArrowUpRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
               </a>
 
               <a
                 href="#contact"
-                className="px-5 py-2.5 rounded-xl bg-white/[0.08] hover:bg-white/[0.14] text-white border border-white/15 font-semibold text-xs sm:text-sm transition-all flex items-center gap-2"
+                className="px-3 py-1.5 rounded-lg bg-white/[0.08] hover:bg-white/[0.14] text-white border border-white/15 font-semibold text-xs transition-all flex items-center gap-1.5"
                 id="hero-get-in-touch-cta"
               >
-                <span>Get in Touch</span>
+                <span>Contact</span>
               </a>
             </div>
-          </div>
-        </div>
-
-        {/* Scroll Progress & Prompt Footer */}
-        <div className="relative z-10 pb-4 px-4 sm:px-8 max-w-7xl mx-auto w-full flex items-center justify-between text-xs text-neutral-400 font-mono">
-          {/* Scroll Prompt & Mouse Indicator */}
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-            <span ref={scrollPromptRef}>
-              {prefersReducedMotion
-                ? "Awakening Complete — scroll down to explore portfolio"
-                : "Scroll down to advance awakening"}
-            </span>
-          </div>
-
-          {/* Audio Toggle & Timeline Bar */}
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={toggleMute}
-              className="backdrop-blur-md bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 p-1.5 rounded-lg text-neutral-400 hover:text-white transition-colors cursor-pointer"
-              title={isMuted ? "Unmute Cinematic Audio" : "Mute Audio"}
-              aria-label="Toggle Audio"
-            >
-              {isMuted ? (
-                <VolumeX className="w-3.5 h-3.5" />
-              ) : (
-                <Volume2 className="w-3.5 h-3.5 text-emerald-400" />
-              )}
-            </button>
-            <div className="w-32 sm:w-48 h-1.5 bg-white/10 rounded-full overflow-hidden">
-              <div
-                ref={timelineBarRef}
-                className="h-full bg-gradient-to-r from-neutral-400 via-emerald-400 to-white transition-all duration-75"
-                style={{ width: prefersReducedMotion ? "100%" : "0%" }}
-              />
-            </div>
-            <span ref={percentageRef} className="text-[11px] text-neutral-300">
-              {prefersReducedMotion ? "100%" : "0%"}
-            </span>
           </div>
         </div>
       </div>

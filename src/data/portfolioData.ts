@@ -56,7 +56,7 @@ export const PORTFOLIO_DATA = {
     waveInitLinkedIn: "https://www.linkedin.com/company/wave-init",
     personalLinkedIn: "https://www.linkedin.com/in/sriram-k-486bb4343/",
     github: "https://github.com/sriram-Kannan-45",
-    email: "titooram123@gmail.com",
+    email: "sriram.waveinit@gmail.com",
     phone: "+91 6381102874",
     phoneTel: "+916381102874",
     resumePdf: "/SRIRAMK_RESUME.pdf",
@@ -70,9 +70,9 @@ export const PORTFOLIO_DATA = {
     companyTagline: "AI, Full-Stack & GenAI Development Studio",
     companyDescription:
       "Wave Init Solutions builds modern full-stack applications, AI-powered products, GenAI solutions, web platforms and intelligent automation using advanced AI-assisted development workflows. We engineer architectures capable of sub-second execution, enterprise-grade security, and modular scaling.",
-    logo: "/waveinit-logo.png",
-    logoHorizontal: "/waveinit-logo-horizontal.png",
-    logoSvg: "/waveinit-logo.svg",
+    logo: "/waveinit-official-logo.jpg",
+    logoHorizontal: "/waveinit-official-logo.jpg",
+    logoSvg: "/waveinit-official-logo.jpg",
     keyPillars: [
       {
         title: "Sub-Second Latency Execution",

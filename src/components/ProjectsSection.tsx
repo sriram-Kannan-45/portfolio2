@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { PORTFOLIO_DATA, Project } from "@/data/portfolioData";
+import { TechIcon } from "@/components/TechIcon";
 import {
   ExternalLink,
   Layers,
@@ -134,14 +135,26 @@ export default function ProjectsSection() {
 
             {/* Tags & Action Link Footer */}
             <div className="pt-4 border-t border-white/5 flex flex-wrap items-center justify-between gap-4">
-              <div className="flex flex-wrap gap-1.5">
+              <div className="flex flex-wrap gap-2 items-center">
                 {project.tags.map((tag) => (
-                  <span
+                  <div
                     key={tag}
-                    className="px-2.5 py-1 rounded-md bg-white/[0.03] text-[11px] font-mono text-neutral-400"
+                    className="relative group/tag flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] border border-white/10 hover:border-emerald-400/50 hover:scale-110 hover:-translate-y-0.5 transition-all duration-200 shadow-sm hover:shadow-emerald-500/10 cursor-pointer"
+                    title={tag}
+                    aria-label={tag}
+                    tabIndex={0}
                   >
-                    {tag}
-                  </span>
+                    <TechIcon
+                      name={tag}
+                      className="w-5 h-5 transition-transform duration-200 group-hover/tag:scale-110"
+                    />
+
+                    {/* Tooltip */}
+                    <div className="absolute -top-8 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-md bg-neutral-900/95 border border-white/20 text-white text-[10px] font-mono whitespace-nowrap opacity-0 group-hover/tag:opacity-100 group-focus/tag:opacity-100 pointer-events-none transition-all duration-200 z-30 shadow-xl backdrop-blur-md">
+                      {tag}
+                      <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-neutral-900 border-r border-b border-white/20 rotate-45" />
+                    </div>
+                  </div>
                 ))}
               </div>
 

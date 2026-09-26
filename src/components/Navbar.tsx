@@ -1,21 +1,78 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import { PORTFOLIO_DATA } from "@/data/portfolioData";
 import { Menu, X, ArrowUpRight, Download, Sparkles } from "lucide-react";
 
-export default function Navbar() {
+interface NavbarProps {
+  visible?: boolean;
+}
+
+export default function Navbar({ visible }: NavbarProps) {
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [internalVisible, setInternalVisible] = useState(false);
+  const scrolledRef = useRef(false);
+  const visibleRef = useRef(false);
 
   useEffect(() => {
-    const handleScroll = () => {
-      setScrolled(window.scrollY > 40);
+    // 1. Listen for video completion event from HeroScrollVideo
+    const handleVideoScrolled = (e: Event) => {
+      const customEvent = e as CustomEvent<{ isVideoDone: boolean }>;
+      const isDone = Boolean(customEvent.detail?.isVideoDone);
+      if (isDone !== visibleRef.current) {
+        visibleRef.current = isDone;
+        setInternalVisible(isDone);
+      }
     };
+
+    // 2. Direct scroll listener to check position
+    const handleScroll = () => {
+      const isPast = window.scrollY > 40;
+      if (isPast !== scrolledRef.current) {
+        scrolledRef.current = isPast;
+        setScrolled(isPast);
+      }
+
+      // If user scrolled to About section or below, ensure menu is visible
+      const aboutEl = document.getElementById("about");
+      if (aboutEl) {
+        const rect = aboutEl.getBoundingClientRect();
+        if (rect.top <= window.innerHeight * 0.9) {
+          if (!visibleRef.current) {
+            visibleRef.current = true;
+            setInternalVisible(true);
+          }
+          return;
+        }
+      }
+
+      // If user scrolls back to the very top hero video, hide menu
+      if (window.scrollY < 50 && visibleRef.current) {
+        visibleRef.current = false;
+        setInternalVisible(false);
+      }
+    };
+
+    window.addEventListener("videoScrolledChange", handleVideoScrolled);
     window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
+    handleScroll();
+
+    return () => {
+      window.removeEventListener("videoScrolledChange", handleVideoScrolled);
+      window.removeEventListener("scroll", handleScroll);
+    };
   }, []);
+
+  const isMenuVisible = visible !== undefined ? visible : internalVisible;
+
+  // Automatically close mobile menu if navbar hides
+  useEffect(() => {
+    if (!isMenuVisible) {
+      setMobileMenuOpen(false);
+    }
+  }, [isMenuVisible]);
 
   const navLinks = [
     { label: "Awakening", href: "#hero" },
@@ -29,7 +86,11 @@ export default function Navbar() {
 
   return (
     <header
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ease-out ${
+        !isMenuVisible
+          ? "-translate-y-full opacity-0 pointer-events-none"
+          : "translate-y-0 opacity-100 pointer-events-auto"
+      } ${
         scrolled
           ? "bg-[#050505]/85 backdrop-blur-md border-b border-white/5 py-3 shadow-2xl"
           : "bg-transparent py-5"

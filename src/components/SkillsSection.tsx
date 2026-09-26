@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { PORTFOLIO_DATA } from "@/data/portfolioData";
+import { TechIcon } from "@/components/TechIcon";
 import {
   Brain,
   Code,
@@ -169,17 +170,28 @@ export default function SkillsSection() {
                 </p>
               </div>
 
-              {/* Skills Tags */}
+              {/* Skills Logos */}
               <div className="pt-4 border-t border-white/5">
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-2.5 items-center">
                   {group.items.map((skill) => (
-                    <span
+                    <div
                       key={skill}
-                      className="px-3 py-1.5 rounded-lg bg-white/[0.03] hover:bg-white/[0.07] border border-white/5 hover:border-emerald-500/30 text-xs text-neutral-300 font-mono flex items-center gap-1.5 transition-colors"
+                      className="relative group/skill flex items-center justify-center w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] border border-white/10 hover:border-emerald-400/50 hover:scale-110 hover:-translate-y-1 transition-all duration-200 shadow-sm hover:shadow-emerald-500/10 hover:shadow-lg cursor-pointer"
+                      title={skill}
+                      aria-label={skill}
+                      tabIndex={0}
                     >
-                      <span className="w-1 h-1 rounded-full bg-emerald-400" />
-                      <span>{skill}</span>
-                    </span>
+                      <TechIcon
+                        name={skill}
+                        className="w-6 h-6 transition-transform duration-200 group-hover/skill:scale-110"
+                      />
+
+                      {/* Tooltip */}
+                      <div className="absolute -top-9 left-1/2 -translate-x-1/2 px-2.5 py-1 rounded-md bg-neutral-900/95 border border-white/20 text-white text-[11px] font-mono whitespace-nowrap opacity-0 group-hover/skill:opacity-100 group-focus/skill:opacity-100 pointer-events-none transition-all duration-200 z-30 shadow-xl backdrop-blur-md">
+                        {skill}
+                        <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-neutral-900 border-r border-b border-white/20 rotate-45" />
+                      </div>
+                    </div>
                   ))}
                 </div>
 

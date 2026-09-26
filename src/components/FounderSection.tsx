@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState, useRef } from "react";
 import Image from "next/image";
 import { PORTFOLIO_DATA } from "@/data/portfolioData";
 import {
@@ -16,6 +16,17 @@ import { LinkedinIcon } from "@/components/SocialIcons";
 
 export default function FounderSection() {
   const { founderVision, links } = PORTFOLIO_DATA;
+  const [rotationAngle, setRotationAngle] = useState(0);
+  const lastTouchTimeRef = useRef(0);
+
+  const handleEmblemRotate = (e: React.SyntheticEvent) => {
+    const now = Date.now();
+    if (now - lastTouchTimeRef.current < 300) {
+      return;
+    }
+    lastTouchTimeRef.current = now;
+    setRotationAngle((prev) => prev + 360);
+  };
 
   const pillarIcons = [Zap, Database, ShieldCheck, Layers];
 
@@ -48,22 +59,36 @@ export default function FounderSection() {
         {/* Brand Card & Company Narrative */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center pt-8 border-t border-white/10 mb-12">
           {/* Logo Showcase */}
-          <div className="lg:col-span-4 p-8 rounded-2xl bg-black/60 border border-white/10 flex flex-col items-center justify-center text-center">
-            <div className="relative w-48 h-20 mb-4 flex items-center justify-center">
-              <Image
-                src={founderVision.logoHorizontal}
-                alt="Wave Init Solutions Official Logo"
-                width={192}
-                height={80}
-                className="object-contain"
-              />
-            </div>
-            <span className="text-xs font-mono text-neutral-400">
+          <div className="lg:col-span-4 p-7 sm:p-8 rounded-3xl bg-black/60 border border-white/10 hover:border-emerald-500/30 transition-all duration-300 flex flex-col items-center justify-center text-center shadow-xl group">
+            <button
+              type="button"
+              onClick={handleEmblemRotate}
+              onTouchStart={handleEmblemRotate}
+              title="Touch or click to rotate"
+              aria-label="Rotate Wave Init Emblem"
+              className="relative w-36 h-36 sm:w-40 sm:h-40 mb-4 rounded-full p-1 bg-gradient-to-tr from-emerald-500/40 via-white/20 to-emerald-400/40 shadow-2xl flex items-center justify-center cursor-pointer hover:scale-105 active:scale-95 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-emerald-400/50 group/emblem"
+            >
+              <div
+                className="w-full h-full rounded-full overflow-hidden bg-white flex items-center justify-center shadow-inner transition-transform duration-700 ease-out"
+                style={{ transform: `rotate(${rotationAngle}deg)` }}
+              >
+                <Image
+                  src={founderVision.logo}
+                  alt="Wave Init Solutions Official Emblem"
+                  width={160}
+                  height={160}
+                  className="object-contain w-full h-full pointer-events-none select-none"
+                  style={{ width: "auto", height: "auto" }}
+                  priority
+                />
+              </div>
+            </button>
+            <span className="text-xs font-mono text-neutral-300 font-semibold tracking-wide">
               Official Enterprise Branding
             </span>
-            <div className="mt-4 flex items-center gap-2">
+            <div className="mt-3 flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-950/50 border border-emerald-500/20">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="text-[11px] font-mono text-emerald-400">
+              <span className="text-[11px] font-mono text-emerald-400 font-medium">
                 Operating Tech Venture
               </span>
             </div>
