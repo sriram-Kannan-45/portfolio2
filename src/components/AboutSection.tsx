@@ -52,7 +52,7 @@ export default function AboutSection() {
             <Sparkles className="w-3.5 h-3.5" />
             <span>01 // IDENTITY & PHILOSOPHY</span>
           </div>
-          <h2 className="text-2xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight uppercase">
+          <h2 className="text-2xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight uppercase break-words">
             Architecting at the Edge of <br className="hidden sm:block" />
             <span className="text-neutral-400">AI and Software Engineering</span>
           </h2>
@@ -107,12 +107,12 @@ export default function AboutSection() {
               <span className="text-neutral-400 flex-shrink-0">QA Engineer</span>
             </div>
 
-            <div className="flex items-center justify-between p-2.5 sm:p-3 rounded-xl bg-white/[0.03] border border-white/5 gap-2">
+            <div className="flex flex-col min-[380px]:flex-row min-[380px]:items-center justify-between p-2.5 sm:p-3 rounded-xl bg-white/[0.03] border border-white/5 gap-1.5 min-[380px]:gap-2">
               <div className="flex items-center gap-2.5 text-neutral-300 min-w-0">
                 <GraduationCap className="w-4 h-4 text-neutral-400 flex-shrink-0" />
-                <span className="truncate max-w-[130px] xs:max-w-none">Knowledge Inst. of Tech.</span>
+                <span className="truncate">Knowledge Inst. of Tech.</span>
               </div>
-              <span className="text-neutral-400 flex-shrink-0 text-[10px] xs:text-[11px] sm:text-xs">B.Tech AI & DS (22–26)</span>
+              <span className="text-neutral-400 flex-shrink-0 text-[10px] xs:text-[11px] sm:text-xs pl-6.5 min-[380px]:pl-0">B.Tech AI & DS (22–26)</span>
             </div>
           </div>
         </div>

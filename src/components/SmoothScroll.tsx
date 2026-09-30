@@ -32,6 +32,13 @@ export default function SmoothScroll() {
   // Dedicated anchor navigation state for navbar and in-page CTA links
   const isAnchorNavigatingRef = useRef(false);
 
+  // Mobile touch gesture tracking
+  const touchStartYRef = useRef(0);
+  const touchStartXRef = useRef(0);
+  const touchLastYRef = useRef(0);
+  const touchStartTimeRef = useRef(0);
+  const isTouchDraggingRef = useRef(false);
+
   useEffect(() => {
     if (typeof window === "undefined") return;
 
@@ -352,30 +359,113 @@ export default function SmoothScroll() {
       const currentY = window.scrollY;
       currentScrollRef.current = currentY;
 
-      // Keep target synchronized when dragging scrollbar thumb or touch-scrolling
-      if (!isAnimatingRef.current || isTouchRef.current) {
+      // Keep target synchronized when dragging scrollbar thumb
+      if (!isAnimatingRef.current) {
         targetScrollRef.current = currentY;
       }
     };
 
-    // Touch device support: preserve completely natural mobile gestures
-    const onTouchStart = () => {
-      isTouchRef.current = true;
+    // Mobile Touch Gesture Normalization: matches down-button speed and prevents section skipping
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length !== 1) return;
+      const touch = e.touches[0];
+      touchStartYRef.current = touch.clientY;
+      touchStartXRef.current = touch.clientX;
+      touchLastYRef.current = touch.clientY;
+      touchStartTimeRef.current = performance.now();
+      isTouchDraggingRef.current = false;
+
+      // Reset ongoing anchor navigation or drives
+      isAnchorNavigatingRef.current = false;
       activeKeyRef.current = null;
       virtualDriveRef.current = null;
-      if (rafIdRef.current) {
-        cancelAnimationFrame(rafIdRef.current);
-        rafIdRef.current = null;
-        isAnimatingRef.current = false;
-      }
+
       currentScrollRef.current = window.scrollY;
       targetScrollRef.current = window.scrollY;
     };
 
-    const onTouchEnd = () => {
-      isTouchRef.current = false;
-      currentScrollRef.current = window.scrollY;
-      targetScrollRef.current = window.scrollY;
+    const onTouchMove = (e: TouchEvent) => {
+      if (e.touches.length !== 1) return;
+      const touch = e.touches[0];
+      const currentY = touch.clientY;
+      const currentX = touch.clientX;
+      const diffX = Math.abs(currentX - touchStartXRef.current);
+      const diffY = Math.abs(currentY - touchStartYRef.current);
+
+      // Allow natural horizontal gestures without hijacking
+      if (!isTouchDraggingRef.current && diffX > diffY && diffX > 8) {
+        return;
+      }
+
+      // Small threshold before engaging vertical drag (preserves crisp taps on links/buttons)
+      if (!isTouchDraggingRef.current && diffY > 6) {
+        isTouchDraggingRef.current = true;
+      }
+
+      if (isTouchDraggingRef.current) {
+        // Prevent browser's native runaway momentum fling
+        if (e.cancelable) {
+          e.preventDefault();
+        }
+
+        const maxScroll = getMaxScroll();
+        const deltaY = touchLastYRef.current - currentY;
+        touchLastYRef.current = currentY;
+
+        if (Math.abs(deltaY) < 0.3) return;
+
+        // Controlled tactile tracking
+        let newTarget = targetScrollRef.current + deltaY * 1.1;
+        newTarget = Math.max(0, Math.min(maxScroll, newTarget));
+
+        // Strict lead clamp: prevents wild finger swipes from leaping ahead of animations
+        if (newTarget > currentScrollRef.current + MAX_CONTROLLED_LEAD) {
+          newTarget = currentScrollRef.current + MAX_CONTROLLED_LEAD;
+        } else if (newTarget < currentScrollRef.current - MAX_CONTROLLED_LEAD) {
+          newTarget = currentScrollRef.current - MAX_CONTROLLED_LEAD;
+        }
+
+        targetScrollRef.current = newTarget;
+        startAnimation();
+      }
+    };
+
+    const onTouchEnd = (e: TouchEvent) => {
+      if (!isTouchDraggingRef.current) return;
+      isTouchDraggingRef.current = false;
+
+      const touch = e.changedTouches[0];
+      if (!touch) return;
+
+      const maxScroll = getMaxScroll();
+      const now = performance.now();
+      const elapsed = now - touchStartTimeRef.current;
+      const totalDeltaY = touchStartYRef.current - touch.clientY;
+      const absDist = Math.abs(totalDeltaY);
+
+      // Controlled swipe detection: short flick (< 320ms) and meaningful distance (> 30px)
+      if (elapsed < 320 && absDist > 30) {
+        const dir: 1 | -1 = totalDeltaY > 0 ? 1 : -1;
+        // Smoothly advances by one controlled section transition step (capped at 48px)
+        const controlledSwipeStep = Math.min(MAX_CONTROLLED_LEAD, Math.max(KEY_SINGLE_STEP, absDist * 0.4));
+        let newTarget = targetScrollRef.current + dir * controlledSwipeStep;
+        newTarget = Math.max(0, Math.min(maxScroll, newTarget));
+
+        if (newTarget > currentScrollRef.current + MAX_CONTROLLED_LEAD) {
+          newTarget = currentScrollRef.current + MAX_CONTROLLED_LEAD;
+        } else if (newTarget < currentScrollRef.current - MAX_CONTROLLED_LEAD) {
+          newTarget = currentScrollRef.current - MAX_CONTROLLED_LEAD;
+        }
+
+        targetScrollRef.current = newTarget;
+
+        // Sustain controlled deceleration at 380px/s for 120ms
+        virtualDriveRef.current = {
+          dir,
+          expiry: now + 120,
+        };
+        startAnimation();
+      }
     };
 
     // Smooth in-page anchor navigation (e.g. #about, #skills, #contact, #hero)
@@ -428,7 +518,9 @@ export default function SmoothScroll() {
     document.addEventListener("visibilitychange", onBlur);
     window.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("touchstart", onTouchStart, { passive: true });
+    window.addEventListener("touchmove", onTouchMove, { passive: false });
     window.addEventListener("touchend", onTouchEnd, { passive: true });
+    window.addEventListener("touchcancel", onTouchEnd, { passive: true });
     window.addEventListener("resize", getMaxScroll, { passive: true });
     window.addEventListener("orientationchange", getMaxScroll, { passive: true });
     window.addEventListener("videoScrolledChange", getMaxScroll, { passive: true });
@@ -452,7 +544,9 @@ export default function SmoothScroll() {
       document.removeEventListener("visibilitychange", onBlur);
       window.removeEventListener("scroll", onScroll);
       window.removeEventListener("touchstart", onTouchStart);
+      window.removeEventListener("touchmove", onTouchMove);
       window.removeEventListener("touchend", onTouchEnd);
+      window.removeEventListener("touchcancel", onTouchEnd);
       window.removeEventListener("resize", getMaxScroll);
       window.removeEventListener("orientationchange", getMaxScroll);
       window.removeEventListener("videoScrolledChange", getMaxScroll);

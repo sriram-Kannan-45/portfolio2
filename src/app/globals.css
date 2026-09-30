@@ -1,6 +1,10 @@
 @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500;1,600;1,700&display=swap');
 @import "tailwindcss";
 
+@theme {
+  --breakpoint-xs: 380px;
+}
+
 .font-cinematic {
   font-family: 'Cormorant Garamond', 'Cinzel', 'Playfair Display', Didot, 'Bodoni MT', Georgia, serif;
 }

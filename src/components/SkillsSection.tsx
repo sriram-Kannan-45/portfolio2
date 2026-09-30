@@ -109,7 +109,7 @@ export default function SkillsSection() {
             <Sparkles className="w-3.5 h-3.5" />
             <span>02 // TECHNICAL PROFICIENCY</span>
           </div>
-          <h2 className="text-2xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight uppercase">
+          <h2 className="text-2xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight uppercase break-words">
             Rigorous Tools &amp; <br className="hidden sm:block" />
             <span className="text-neutral-400">Verifiable Engineering Stack</span>
           </h2>

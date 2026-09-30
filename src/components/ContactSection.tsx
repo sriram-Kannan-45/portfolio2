@@ -66,7 +66,7 @@ export default function ContactSection() {
             <span>05 // INITIATE COLLABORATION</span>
           </div>
 
-          <h2 className="text-2xl sm:text-4xl lg:text-6xl font-black text-white tracking-tight uppercase mb-3 sm:mb-4 leading-tight">
+          <h2 className="text-2xl sm:text-4xl lg:text-6xl font-black text-white tracking-tight uppercase mb-3 sm:mb-4 leading-tight break-words">
             HAVE AN IDEA? <br />
             <span className="text-emerald-400">LET&apos;S BUILD SOMETHING INTELLIGENT.</span>
           </h2>

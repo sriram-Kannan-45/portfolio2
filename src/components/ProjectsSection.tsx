@@ -40,7 +40,7 @@ export default function ProjectsSection() {
             <Sparkles className="w-3.5 h-3.5" />
             <span>03 // FEATURED WORK</span>
           </div>
-          <h2 className="text-2xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight uppercase">
+          <h2 className="text-2xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight uppercase break-words">
             Intelligent Systems &amp; <br className="hidden sm:block" />
             <span className="text-neutral-400">Production Platforms</span>
           </h2>
@@ -95,7 +95,7 @@ export default function ProjectsSection() {
               </div>
 
               {/* Title & Subtitle */}
-              <h3 className="text-xl sm:text-2xl font-black text-white mb-1 group-hover:text-emerald-400 transition-colors">
+              <h3 className="text-xl sm:text-2xl font-black text-white mb-1 group-hover:text-emerald-400 transition-colors break-words">
                 {project.title}
               </h3>
               <p className="text-xs font-mono text-neutral-400 mb-3 sm:mb-4">
@@ -117,7 +117,7 @@ export default function ProjectsSection() {
               </div>
 
               {/* Technical Metrics Pill Group */}
-              <div className="grid grid-cols-3 gap-1.5 sm:gap-2 p-2.5 sm:p-3 rounded-xl sm:rounded-2xl bg-black/40 border border-white/5 mb-5 sm:mb-6 text-center font-mono">
+              <div className="grid grid-cols-3 gap-1 sm:gap-2 p-2 sm:p-3 rounded-xl sm:rounded-2xl bg-black/40 border border-white/5 mb-5 sm:mb-6 text-center font-mono">
                 {project.metrics.map((m) => (
                   <div key={m.label} className="flex flex-col min-w-0">
                     <span className="text-[9px] xs:text-[10px] text-neutral-500 uppercase truncate">

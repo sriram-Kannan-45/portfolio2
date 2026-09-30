@@ -47,7 +47,7 @@ export default function FounderSection() {
         </div>
 
         {/* Founder Headline */}
-        <h2 className="text-2xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight uppercase mb-3 sm:mb-4 leading-tight">
+        <h2 className="text-2xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight uppercase mb-3 sm:mb-4 leading-tight break-words">
           {founderVision.title}
         </h2>
 

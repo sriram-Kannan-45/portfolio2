@@ -220,7 +220,7 @@ export default function Navbar({ visible }: NavbarProps) {
               target="_blank"
               rel="noopener noreferrer"
               download="SRIRAMK_RESUME.pdf"
-              className="p-2 min-w-[38px] min-h-[38px] flex items-center justify-center text-neutral-300 hover:text-white transition-colors"
+              className="p-2 min-w-[44px] min-h-[44px] flex items-center justify-center text-neutral-300 hover:text-white transition-colors"
               aria-label="Download Resume (PDF)"
               title="Resume (PDF)"
             >
@@ -228,7 +228,7 @@ export default function Navbar({ visible }: NavbarProps) {
             </a>
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="p-2 min-w-[38px] min-h-[38px] flex items-center justify-center text-neutral-400 hover:text-white transition-colors focus:outline-none focus:ring-1 focus:ring-emerald-500/50 rounded-lg"
+              className="p-2 min-w-[44px] min-h-[44px] flex items-center justify-center text-neutral-400 hover:text-white transition-colors focus:outline-none focus:ring-1 focus:ring-emerald-500/50 rounded-lg"
               aria-label={mobileMenuOpen ? "Close Navigation Menu" : "Open Navigation Menu"}
               aria-expanded={mobileMenuOpen}
               id="mobile-menu-toggle"

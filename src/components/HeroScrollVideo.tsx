@@ -629,21 +629,21 @@ export default function HeroScrollVideo() {
         </div>
 
         {/* Main Cinematic Left Typography Overlay */}
-        <div className="relative z-10 px-6 sm:px-12 lg:px-20 max-w-7xl w-full my-auto flex flex-col justify-center items-start">
+        <div className="relative z-10 px-5 sm:px-12 lg:px-20 max-w-7xl w-full my-auto flex flex-col justify-center items-start">
           {/* Eyebrow with horizontal line divider */}
           <div
             ref={eyebrowRef}
-            className="flex items-center gap-3 sm:gap-4 mb-3 sm:mb-4 will-change-[transform,opacity]"
+            className="flex items-center gap-2.5 sm:gap-4 mb-2.5 sm:mb-4 will-change-[transform,opacity]"
             style={{ opacity: 0 }}
           >
-            <span className="text-[11px] sm:text-xs font-mono uppercase tracking-[0.28em] text-neutral-400">
+            <span className="text-[10px] min-[380px]:text-[11px] sm:text-xs font-mono uppercase tracking-[0.18em] sm:tracking-[0.28em] text-neutral-400">
               AI &amp; SOFTWARE BUILDER
             </span>
-            <span className="w-10 sm:w-16 h-[1px] bg-white/20" />
+            <span className="w-8 sm:w-16 h-[1px] bg-white/20" />
           </div>
 
           {/* Main Cinematic Serif Headline: Cormorant Garamond */}
-          <h1 className="font-cinematic font-black tracking-tight text-white uppercase text-5xl sm:text-7xl lg:text-[5.5rem] xl:text-[6.5rem] leading-[0.92] mb-3 sm:mb-4">
+          <h1 className="font-cinematic font-black tracking-tight text-white uppercase text-4xl min-[380px]:text-5xl sm:text-7xl lg:text-[5.5rem] xl:text-[6.5rem] leading-[0.92] mb-3 sm:mb-4">
             <span
               ref={lineOneRef}
               className="block will-change-[transform,opacity]"
@@ -663,7 +663,7 @@ export default function HeroScrollVideo() {
           {/* Tagline */}
           <p
             ref={taglineRef}
-            className="font-mono text-xs sm:text-sm tracking-[0.2em] text-neutral-300 uppercase max-w-lg sm:max-w-xl leading-relaxed mb-6 sm:mb-8 will-change-[transform,opacity]"
+            className="font-mono text-[11px] sm:text-sm tracking-[0.14em] sm:tracking-[0.2em] text-neutral-300 uppercase max-w-lg sm:max-w-xl leading-relaxed mb-5 sm:mb-8 will-change-[transform,opacity]"
             style={{ opacity: 0 }}
           >
             BUILDING INTELLIGENT DIGITAL EXPERIENCES THAT TRANSFORM REALITY.
@@ -672,32 +672,32 @@ export default function HeroScrollVideo() {
           {/* Action CTAs */}
           <div
             ref={ctasRef}
-            className="flex flex-wrap items-center gap-3 sm:gap-4 will-change-[transform,opacity]"
+            className="flex flex-wrap items-center gap-2 sm:gap-4 will-change-[transform,opacity]"
             style={{ opacity: 0 }}
           >
             <a
               href="#projects"
-              className="px-5 sm:px-6 py-2.5 sm:py-3 rounded-full bg-white text-black font-semibold text-xs sm:text-sm hover:bg-neutral-200 transition-all flex items-center gap-2 shadow-lg hover:shadow-xl"
+              className="px-4 sm:px-6 py-2 sm:py-3 rounded-full bg-white text-black font-semibold text-xs sm:text-sm hover:bg-neutral-200 transition-all flex items-center gap-1.5 sm:gap-2 shadow-lg hover:shadow-xl"
               id="hero-explore-work-cta"
             >
               <span>Explore Work</span>
-              <ChevronDown className="w-4 h-4" />
+              <ChevronDown className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </a>
 
             <a
               href={PORTFOLIO_DATA.links.waveInitSolutions}
               target="_blank"
               rel="noopener noreferrer"
-              className="px-5 sm:px-6 py-2.5 sm:py-3 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs sm:text-sm transition-all flex items-center gap-2 shadow-lg group"
+              className="px-4 sm:px-6 py-2 sm:py-3 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs sm:text-sm transition-all flex items-center gap-1.5 sm:gap-2 shadow-lg group"
               id="hero-wave-init-cta"
             >
               <span>Wave Init Solutions</span>
-              <ArrowUpRight className="w-4 h-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+              <ArrowUpRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
             </a>
 
             <a
               href="#contact"
-              className="px-5 sm:px-6 py-2.5 sm:py-3 rounded-full bg-white/[0.08] hover:bg-white/[0.18] text-white border border-white/20 font-semibold text-xs sm:text-sm transition-all flex items-center gap-2 backdrop-blur-md"
+              className="px-4 sm:px-6 py-2 sm:py-3 rounded-full bg-white/[0.08] hover:bg-white/[0.18] text-white border border-white/20 font-semibold text-xs sm:text-sm transition-all flex items-center gap-1.5 sm:gap-2 backdrop-blur-md"
               id="hero-get-in-touch-cta"
             >
               <span>Contact</span>
@@ -706,7 +706,7 @@ export default function HeroScrollVideo() {
         </div>
 
         {/* Bottom Bar: Indicators and Social links */}
-        <div className="relative z-10 w-full px-6 sm:px-12 lg:px-20 pb-6 sm:pb-8 flex items-center justify-between pointer-events-none">
+        <div className="relative z-10 w-full px-5 sm:px-12 lg:px-20 pb-5 sm:pb-8 flex items-center justify-between pointer-events-none">
           {/* Bottom Left: SCROLL indicator */}
           <div className="flex items-center gap-2 sm:gap-3">
             <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.8)]" />
