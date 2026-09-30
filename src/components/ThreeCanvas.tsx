@@ -305,10 +305,8 @@ function MouseTrackerLight({ isMobile }: { isMobile: boolean }) {
   const lightRef = useRef<THREE.PointLight>(null);
   const prevPosRef = useRef({ x: 0, y: 0 });
 
-  if (isMobile) return null;
-
   useFrame(({ pointer }) => {
-    if (document.hidden || !lightRef.current) return;
+    if (isMobile || document.hidden || !lightRef.current) return;
     const dx = Math.abs(pointer.x - prevPosRef.current.x);
     const dy = Math.abs(pointer.y - prevPosRef.current.y);
     if (dx > 0.005 || dy > 0.005) {
@@ -318,6 +316,8 @@ function MouseTrackerLight({ isMobile }: { isMobile: boolean }) {
       lightRef.current.position.y = pointer.y * 3;
     }
   });
+
+  if (isMobile) return null;
 
   return (
     <pointLight
