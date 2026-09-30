@@ -12,6 +12,7 @@ import ExperienceSection from "@/components/ExperienceSection";
 import ContactSection from "@/components/ContactSection";
 import Footer from "@/components/Footer";
 import SmoothScroll from "@/components/SmoothScroll";
+import ElectricSparks from "@/components/ElectricSparks";
 
 // Lazy-load Three.js WebGL background with SSR disabled to prevent hydration errors
 const ThreeCanvas = dynamic(() => import("@/components/ThreeCanvas"), {
@@ -91,6 +92,9 @@ export default function Home() {
         {/* Background Interactive 3D Depth Layer */}
         <ThreeCanvas active={isPastVideo} />
       </div>
+
+      {/* Subtle Electric Spark Transition Trail (Behind content, z-[2]) */}
+      <ElectricSparks />
 
       {/* Top Navigation - revealed only after video frames are fully scrolled */}
       <Navbar visible={isPastVideo} />
