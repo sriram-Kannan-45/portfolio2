@@ -391,8 +391,8 @@ export default function SmoothScroll() {
           e.preventDefault();
           const maxScroll = getMaxScroll();
           const navOffset = href === "#hero" ? 0 : 70;
-          const targetY = element.getBoundingClientRect().top + window.scrollY - navOffset;
-          const destination = Math.max(0, Math.min(maxScroll, targetY));
+          const targetY = href === "#hero" ? 0 : element.getBoundingClientRect().top + window.scrollY - navOffset;
+          const destination = href === "#hero" ? 0 : Math.max(0, Math.min(maxScroll, targetY));
 
           isAnchorNavigatingRef.current = true;
           activeKeyRef.current = null;
