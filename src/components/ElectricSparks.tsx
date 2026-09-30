@@ -9,21 +9,40 @@ interface Spark {
   vx: number;
   vy: number;
   size: number;
-  color: string;
+  coreColor: string;
   glowColor: string;
+  mainColor: string;
   life: number;
   maxLife: number;
   history: { x: number; y: number }[];
+  seed: number;
   jitterFreq: number;
   jitterAmp: number;
   branch: boolean;
+  branchOffset: { x: number; y: number };
 }
 
 const SPARK_PALETTES = [
-  { color: "#34d399", glow: "rgba(16, 185, 129, 0.7)" }, // Electric Emerald
-  { color: "#38bdf8", glow: "rgba(14, 165, 233, 0.7)" }, // High-voltage Cyan
-  { color: "#fef08a", glow: "rgba(234, 179, 8, 0.6)" },   // Gold Plasma Filament
-  { color: "#f8fafc", glow: "rgba(94, 234, 212, 0.8)" },  // Ionized White Core
+  {
+    core: "#ffffff",
+    main: "#34d399", // Neon Emerald
+    glow: "rgba(52, 211, 153, 0.95)",
+  },
+  {
+    core: "#ffffff",
+    main: "#38bdf8", // Electric Cyan
+    glow: "rgba(56, 189, 248, 0.95)",
+  },
+  {
+    core: "#ffffff",
+    main: "#6ee7b7", // Mint Plasma
+    glow: "rgba(110, 231, 183, 0.9)",
+  },
+  {
+    core: "#ffffff",
+    main: "#fbbf24", // Golden Arc Filament
+    glow: "rgba(251, 191, 36, 0.9)",
+  },
 ];
 
 export default function ElectricSparks() {
@@ -32,7 +51,7 @@ export default function ElectricSparks() {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    // Check prefers-reduced-motion
+    // Honor accessibility preference
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
       return;
     }
@@ -43,19 +62,21 @@ export default function ElectricSparks() {
     const ctx = canvas.getContext("2d", { alpha: true });
     if (!ctx) return;
 
-    let width = (canvas.width = window.innerWidth);
-    let height = (canvas.height = window.innerHeight);
+    let width = 0;
+    let height = 0;
 
-    const onResize = () => {
+    const updateDimensions = () => {
       if (!canvas) return;
       width = canvas.width = window.innerWidth;
       height = canvas.height = window.innerHeight;
     };
-    window.addEventListener("resize", onResize, { passive: true });
+    updateDimensions();
 
-    // Pool of reusable spark objects (0 allocation during scroll animation)
-    const isMobile = width < 768;
-    const POOL_SIZE = isMobile ? 22 : 38;
+    window.addEventListener("resize", updateDimensions, { passive: true });
+
+    // Pool of pre-allocated spark objects (0 garbage collection during scroll animations)
+    const isMobile = window.innerWidth < 768;
+    const POOL_SIZE = isMobile ? 28 : 52;
 
     const pool: Spark[] = Array.from({ length: POOL_SIZE }, () => ({
       active: false,
@@ -63,63 +84,88 @@ export default function ElectricSparks() {
       y: 0,
       vx: 0,
       vy: 0,
-      size: 1.5,
-      color: "#34d399",
-      glowColor: "rgba(16, 185, 129, 0.7)",
+      size: 3,
+      coreColor: "#ffffff",
+      glowColor: "rgba(52, 211, 153, 0.95)",
+      mainColor: "#34d399",
       life: 0,
       maxLife: 45,
       history: [],
-      jitterFreq: 0.25,
-      jitterAmp: 1.2,
+      seed: Math.random() * 100,
+      jitterFreq: 0.35,
+      jitterAmp: 2.2,
       branch: false,
+      branchOffset: { x: 0, y: 0 },
     }));
 
     let lastScrollY = window.scrollY;
-    let scrollAccumulator = 0;
     let isLoopRunning = false;
     let rafId: number | null = null;
-    let lastTime = 0;
+    let idleFrames = 0;
 
     const spawnSpark = (dir: number) => {
-      // Find inactive spark in pool
       const spark = pool.find((s) => !s.active);
       if (!spark) return;
 
       const palette = SPARK_PALETTES[Math.floor(Math.random() * SPARK_PALETTES.length)];
       spark.active = true;
-      spark.color = palette.color;
+      spark.coreColor = palette.core;
+      spark.mainColor = palette.main;
       spark.glowColor = palette.glow;
 
-      // Position: horizontally distributed across the viewport width
-      spark.x = Math.random() * width;
+      // Distributed across screen width with slight center clustering
+      const margin = width * 0.05;
+      spark.x = margin + Math.random() * (width - margin * 2);
 
-      // Position: vertically aligned with the motion direction
-      // When scrolling down (dir > 0), sparks emerge from the lower half and travel upward
-      // When scrolling up (dir < 0), sparks emerge from the upper half and travel downward
+      // Vertical spawn point aligned with motion direction:
+      // Scrolling DOWN (dir > 0): sparks spawn in lower screen half and surge upward
+      // Scrolling UP (dir < 0): sparks spawn in upper screen half and surge downward
       if (dir > 0) {
-        spark.y = height * (0.4 + Math.random() * 0.55);
-        spark.vy = -(Math.random() * 2.6 + 1.2);
+        spark.y = height * (0.45 + Math.random() * 0.5);
+        spark.vy = -(Math.random() * 3.5 + 2.0);
       } else {
-        spark.y = height * (0.05 + Math.random() * 0.55);
-        spark.vy = Math.random() * 2.6 + 1.2;
+        spark.y = height * (0.05 + Math.random() * 0.5);
+        spark.vy = Math.random() * 3.5 + 2.0;
       }
 
-      spark.vx = (Math.random() - 0.5) * 1.4;
-      spark.size = Math.random() * 1.4 + 1.2; // 1.2px - 2.6px subtle size
+      spark.vx = (Math.random() - 0.5) * 2.2;
+      spark.size = Math.random() * 2.0 + 2.2; // 2.2px - 4.2px luminous head
       spark.life = 0;
-      spark.maxLife = Math.floor(Math.random() * 25 + 35); // 35 - 60 frames (~600ms - 1000ms)
-      spark.jitterFreq = Math.random() * 0.3 + 0.15;
-      spark.jitterAmp = Math.random() * 1.8 + 0.8;
-      spark.branch = Math.random() < 0.15; // occasional electric micro-branch
+      spark.maxLife = Math.floor(Math.random() * 20 + 35); // 35 - 55 frames (~600ms - 900ms)
+      spark.seed = Math.random() * 100;
+      spark.jitterFreq = Math.random() * 0.4 + 0.25;
+      spark.jitterAmp = Math.random() * 2.5 + 1.2;
+      spark.branch = Math.random() < 0.22; // 22% chance of micro lightning branch
+      spark.branchOffset = {
+        x: (Math.random() - 0.5) * 16,
+        y: (Math.random() - 0.5) * 14,
+      };
       spark.history = [{ x: spark.x, y: spark.y }];
     };
 
-    const render = (time: number) => {
-      if (!lastTime) lastTime = time;
-      const dt = Math.min((time - lastTime) / 1000, 0.05);
-      lastTime = time;
+    const render = () => {
+      const currentScrollY = window.scrollY;
+      const scrollDelta = currentScrollY - lastScrollY;
+      lastScrollY = currentScrollY;
+
+      // Spawn sparks proportionally when scrolling
+      const absDelta = Math.abs(scrollDelta);
+      if (absDelta > 0.2) {
+        idleFrames = 0;
+        const dir = scrollDelta > 0 ? 1 : -1;
+        // Spawn 1 to 2 sparks per active scroll frame
+        const count = Math.min(3, Math.max(1, Math.round(absDelta / 8)));
+        for (let i = 0; i < count; i++) {
+          spawnSpark(dir);
+        }
+      } else {
+        idleFrames++;
+      }
 
       ctx.clearRect(0, 0, width, height);
+
+      // Use additive blending for intense electric luminescence
+      ctx.globalCompositeOperation = "lighter";
 
       let activeCount = 0;
 
@@ -136,115 +182,114 @@ export default function ElectricSparks() {
           continue;
         }
 
-        // Natural smooth fade envelope (in -> hold -> out)
+        // Luminous fade envelope: quick flare in, steady glow, graceful fade out
         const progress = spark.life / spark.maxLife;
         let alpha = 0;
-        if (progress < 0.18) {
-          alpha = (progress / 0.18) * 0.65;
-        } else if (progress < 0.6) {
-          alpha = 0.65;
+        if (progress < 0.15) {
+          alpha = (progress / 0.15) * 0.95;
+        } else if (progress < 0.55) {
+          alpha = 0.95;
         } else {
-          alpha = ((1 - progress) / 0.4) * 0.65;
+          alpha = ((1 - progress) / 0.45) * 0.95;
         }
 
-        // Electric micro-jitter along perpendicular axis
-        const jitter = Math.sin(spark.life * spark.jitterFreq) * spark.jitterAmp;
-        spark.x += spark.vx + jitter * 0.5;
+        // Micro-electric perpendicular jitter simulation
+        const jitter = Math.sin(spark.life * spark.jitterFreq + spark.seed) * spark.jitterAmp;
+        spark.x += spark.vx + jitter * 0.6;
         spark.y += spark.vy;
 
-        // Maintain small kinetic trail (last 3-4 positions)
+        // Keep 5-6 points of historical trajectory for kinetic electric streamer
         spark.history.unshift({ x: spark.x, y: spark.y });
-        if (spark.history.length > 4) {
+        if (spark.history.length > 6) {
           spark.history.pop();
         }
 
-        // Render subtle glowing electric trail and spark head
         ctx.save();
         ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
         ctx.shadowColor = spark.glowColor;
-        ctx.shadowBlur = 8;
-        ctx.strokeStyle = spark.color;
-        ctx.fillStyle = spark.color;
-        ctx.lineCap = "round";
-        ctx.lineJoin = "round";
+        ctx.shadowBlur = 14;
 
-        // Kinetic electric stream
+        // 1. Draw Electric Kinetic Streamer Tail with subtle lightning jitter
         if (spark.history.length > 1) {
-          ctx.lineWidth = Math.max(0.7, spark.size * 0.6);
           ctx.beginPath();
           ctx.moveTo(spark.history[0].x, spark.history[0].y);
           for (let j = 1; j < spark.history.length; j++) {
-            ctx.lineTo(spark.history[j].x, spark.history[j].y);
+            const pt = spark.history[j];
+            const arcJitter = (Math.sin(j * 4.2 + spark.seed) - 0.5) * 1.8;
+            ctx.lineTo(pt.x + arcJitter, pt.y);
           }
+          ctx.strokeStyle = spark.mainColor;
+          ctx.lineWidth = Math.max(1.0, spark.size * 0.7);
+          ctx.lineCap = "round";
+          ctx.lineJoin = "round";
           ctx.stroke();
 
-          // Occasional micro electric branch
-          if (spark.branch && spark.life % 4 === 0) {
-            ctx.lineWidth = 0.6;
+          // 2. Micro lightning arc branch
+          if (spark.branch && spark.life > 6 && spark.life < spark.maxLife * 0.7) {
             ctx.beginPath();
             ctx.moveTo(spark.x, spark.y);
-            ctx.lineTo(
-              spark.x + (Math.random() - 0.5) * 12,
-              spark.y + (Math.random() - 0.5) * 10
-            );
+            const midX = spark.x + spark.branchOffset.x * 0.5 + (Math.random() - 0.5) * 4;
+            const midY = spark.y + spark.branchOffset.y * 0.5;
+            const endX = spark.x + spark.branchOffset.x;
+            const endY = spark.y + spark.branchOffset.y;
+            ctx.lineTo(midX, midY);
+            ctx.lineTo(endX, endY);
+            ctx.strokeStyle = spark.coreColor;
+            ctx.lineWidth = 0.9;
             ctx.stroke();
           }
         }
 
-        // Glowing spark head
+        // 3. Glowing Electric Spark Core
+        // Outer colored glow aura
         ctx.beginPath();
         ctx.arc(spark.x, spark.y, spark.size, 0, Math.PI * 2);
+        ctx.fillStyle = spark.mainColor;
+        ctx.fill();
+
+        // Hot white electric inner nucleus
+        ctx.beginPath();
+        ctx.arc(spark.x, spark.y, Math.max(1.0, spark.size * 0.5), 0, Math.PI * 2);
+        ctx.fillStyle = spark.coreColor;
+        ctx.shadowBlur = 8;
+        ctx.shadowColor = "#ffffff";
         ctx.fill();
 
         ctx.restore();
       }
 
-      // If active particles exist, keep loop alive
-      if (activeCount > 0) {
+      // Reset composite operation
+      ctx.globalCompositeOperation = "source-over";
+
+      // Keep RAF loop running while particles are active or user recently scrolled
+      if (activeCount > 0 || idleFrames < 10) {
         rafId = requestAnimationFrame(render);
       } else {
         isLoopRunning = false;
         rafId = null;
-        lastTime = 0;
         ctx.clearRect(0, 0, width, height);
       }
     };
 
     const startLoop = () => {
+      idleFrames = 0;
       if (!isLoopRunning) {
         isLoopRunning = true;
-        lastTime = performance.now();
         rafId = requestAnimationFrame(render);
       }
     };
 
-    // Scroll listener: detects section transitions and spawns synchronized sparks
     const onScroll = () => {
-      const currentY = window.scrollY;
-      const delta = currentY - lastScrollY;
-      lastScrollY = currentY;
-
-      const absDelta = Math.abs(delta);
-      if (absDelta < 0.5) return;
-
-      const dir = delta > 0 ? 1 : -1;
-      scrollAccumulator += absDelta;
-
-      // Spawn 1 spark every ~32px of scroll movement (matches KEY_SINGLE_STEP)
-      const SPARK_SCROLL_INTERVAL = 32;
-      while (scrollAccumulator >= SPARK_SCROLL_INTERVAL) {
-        scrollAccumulator -= SPARK_SCROLL_INTERVAL;
-        spawnSpark(dir);
-      }
-
       startLoop();
     };
 
     window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("videoScrolledChange", onScroll, { passive: true });
 
     return () => {
       window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", onResize);
+      window.removeEventListener("videoScrolledChange", onScroll);
+      window.removeEventListener("resize", updateDimensions);
       if (rafId) cancelAnimationFrame(rafId);
     };
   }, []);
@@ -252,9 +297,11 @@ export default function ElectricSparks() {
   return (
     <canvas
       ref={canvasRef}
-      className="fixed inset-0 pointer-events-none z-[2] overflow-hidden"
+      className="fixed inset-0 pointer-events-none z-[3]"
       style={{
-        contain: "strict",
+        width: "100vw",
+        height: "100vh",
+        display: "block",
       }}
       aria-hidden="true"
     />
