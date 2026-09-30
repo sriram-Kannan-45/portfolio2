@@ -7,8 +7,8 @@ import { PORTFOLIO_DATA } from "@/data/portfolioData";
 import {
   ChevronDown,
   ArrowUpRight,
-  Sparkles,
 } from "lucide-react";
+import { GithubIcon, LinkedinIcon } from "@/components/SocialIcons";
 
 // Register ScrollTrigger safely in browser
 if (typeof window !== "undefined") {
@@ -24,7 +24,8 @@ const MOBILE_WIDTH = 1280;
 const MOBILE_HEIGHT = 720;
 
 // Ratio of total scroll dedicated to video playback before holding on the final frame
-const VIDEO_PLAYBACK_RATIO = 0.75;
+// Lower = faster video, Higher = slower video. Target: medium speed
+const VIDEO_PLAYBACK_RATIO = 0.85;
 
 export default function HeroScrollVideo() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -32,9 +33,14 @@ export default function HeroScrollVideo() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const posterRef = useRef<HTMLImageElement>(null);
+  const scrollIndicatorRef = useRef<HTMLDivElement>(null);
 
-  // Direct DOM refs for high-performance scroll scrub (0 React re-renders)
-  const heroRevealRef = useRef<HTMLDivElement>(null);
+  // Sequential text reveal refs
+  const eyebrowRef = useRef<HTMLDivElement>(null);
+  const lineOneRef = useRef<HTMLSpanElement>(null);
+  const nameRef = useRef<HTMLSpanElement>(null);
+  const taglineRef = useRef<HTMLParagraphElement>(null);
+  const ctasRef = useRef<HTMLDivElement>(null);
 
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
 
@@ -100,6 +106,11 @@ export default function HeroScrollVideo() {
     }
 
     if (!img || !img.complete || img.naturalWidth === 0) return;
+
+    // Skip drawing if already on this exact frame
+    if (paintedIdx === lastDrawnIndexRef.current && lastDrawnIndexRef.current >= 0) {
+      return;
+    }
 
     // Match canvas internal resolution to natural image resolution
     if (canvas.width !== img.naturalWidth || canvas.height !== img.naturalHeight) {
@@ -327,93 +338,195 @@ export default function HeroScrollVideo() {
       const p = pendingProgressRef.current;
       const isVideoDone = p >= VIDEO_PLAYBACK_RATIO;
 
-      // Final Hero Reveal Panel & Navbar visibility trigger
-      if (heroRevealRef.current && heroRevealedRef.current !== isVideoDone) {
+      // Notify Navbar & ThreeCanvas when video completes
+      if (heroRevealedRef.current !== isVideoDone) {
         heroRevealedRef.current = isVideoDone;
         if (typeof window !== "undefined") {
           window.dispatchEvent(
             new CustomEvent("videoScrolledChange", { detail: { isVideoDone } })
           );
         }
-        if (isVideoDone) {
-          heroRevealRef.current.classList.remove(
-            "opacity-0",
-            "translate-y-8",
-            "pointer-events-none"
-          );
-          heroRevealRef.current.classList.add(
-            "opacity-100",
-            "translate-y-0",
-            "pointer-events-auto"
-          );
-        } else {
-          heroRevealRef.current.classList.remove(
-            "opacity-100",
-            "translate-y-0",
-            "pointer-events-auto"
-          );
-          heroRevealRef.current.classList.add(
-            "opacity-0",
-            "translate-y-8",
-            "pointer-events-none"
-          );
-        }
       }
     });
   }, []);
 
-  // GSAP ScrollTrigger Setup with Smooth Interpolation & Scrub Damping
+  // GSAP ScrollTrigger Setup with Smooth Sequential Scroll-Driven Reveals
   useEffect(() => {
-    if (!containerRef.current || !pinSectionRef.current || prefersReducedMotion) return;
+    if (!containerRef.current || !pinSectionRef.current) return;
 
     const ctx = gsap.context(() => {
-      // Playhead proxy object smoothly scrubbed by GSAP
-      const playhead = { frame: 0, progress: 0 };
+      if (prefersReducedMotion) {
+        gsap.set(
+          [
+            eyebrowRef.current,
+            lineOneRef.current,
+            nameRef.current,
+            taglineRef.current,
+            ctasRef.current,
+          ],
+          {
+            opacity: 1,
+            y: 0,
+            filter: "none",
+          }
+        );
+        return;
+      }
 
-      gsap.to(playhead, {
-        frame: TOTAL_FRAMES - 1,
-        progress: 1,
-        ease: "none",
+      // Master timeline linked directly to ScrollTrigger
+      const tl = gsap.timeline({
         scrollTrigger: {
           trigger: containerRef.current,
           start: "top top",
-          end: () => `+=${Math.round(window.innerHeight * 6.0)}`,
+          end: () => `+=${Math.round(window.innerHeight * 4.8)}`,
           pin: pinSectionRef.current,
           pinSpacing: true,
           anticipatePin: 1,
-          scrub: 0.5,
-        },
-        onUpdate: () => {
-          const currentProgress = playhead.progress;
-          const videoProgress = Math.min(1, Math.max(0, currentProgress / VIDEO_PLAYBACK_RATIO));
-          const targetIndex = Math.min(
-            TOTAL_FRAMES - 1,
-            Math.max(0, Math.round(videoProgress * (TOTAL_FRAMES - 1)))
-          );
+          scrub: true,
+          onUpdate: (self) => {
+            const currentProgress = self.progress;
+            const videoProgress = Math.min(1, Math.max(0, currentProgress / VIDEO_PLAYBACK_RATIO));
+            const targetIndex = Math.min(
+              TOTAL_FRAMES - 1,
+              Math.max(0, Math.round(videoProgress * (TOTAL_FRAMES - 1)))
+            );
 
-          targetFrameRef.current = targetIndex;
+            targetFrameRef.current = targetIndex;
 
-          // Paint locked to display refresh rate
-          if (!rafPendingRef.current) {
-            rafPendingRef.current = true;
-            requestAnimationFrame(() => {
-              rafPendingRef.current = false;
-              paintFrameToCanvas(targetFrameRef.current);
-            });
-          }
+            // Paint frame directly when index changes
+            if (targetIndex !== lastDrawnIndexRef.current) {
+              paintFrameToCanvas(targetIndex);
 
-          // Video completion check & Hero reveal
-          updateHUD(currentProgress);
+              // Directional preloading only when frame changes
+              const dist = Math.abs(targetIndex - lastPreloadedFrameRef.current);
+              if (dist >= 2) {
+                const dir = targetIndex >= lastPreloadedFrameRef.current ? 1 : -1;
+                lastPreloadedFrameRef.current = targetIndex;
+                preloadNeighborhood(targetIndex, dir, isMobileRef.current);
+              }
+            }
 
-          // Directional preloading only when frame changes
-          const dist = Math.abs(targetIndex - lastPreloadedFrameRef.current);
-          if (dist >= 2) {
-            const dir = targetIndex >= lastPreloadedFrameRef.current ? 1 : -1;
-            lastPreloadedFrameRef.current = targetIndex;
-            preloadNeighborhood(targetIndex, dir, isMobileRef.current);
-          }
+            // Video completion check & Hero reveal
+            updateHUD(currentProgress);
+          },
         },
       });
+
+      // Initial states for sequential reveal (starts hidden with gentle blur & offset)
+      gsap.set(eyebrowRef.current, {
+        opacity: 0,
+        y: 20,
+        filter: "blur(8px)",
+      });
+
+      gsap.set(lineOneRef.current, {
+        opacity: 0,
+        y: 28,
+        filter: "blur(10px)",
+      });
+
+      gsap.set(nameRef.current, {
+        opacity: 0,
+        y: 32,
+        scale: 0.95,
+        filter: "blur(12px)",
+      });
+
+      gsap.set(taglineRef.current, {
+        opacity: 0,
+        y: 20,
+        filter: "blur(8px)",
+      });
+
+      gsap.set(ctasRef.current, {
+        opacity: 0,
+        y: 18,
+      });
+
+      gsap.set(scrollIndicatorRef.current, {
+        opacity: 1,
+        y: 0,
+      });
+
+      // 0.00 -> 0.06: Initial scroll indicator fades out immediately upon scrolling
+      tl.to(
+        scrollIndicatorRef.current,
+        {
+          opacity: 0,
+          y: 12,
+          duration: 0.06,
+          ease: "power2.out",
+        },
+        0.00
+      );
+
+      // 0.06 -> 0.20: Step 1 - Eyebrow smoothly emerges
+      tl.to(
+        eyebrowRef.current,
+        {
+          opacity: 1,
+          y: 0,
+          filter: "blur(0px)",
+          duration: 0.14,
+          ease: "power2.out",
+        },
+        0.06
+      );
+
+      // 0.20 -> 0.38: Step 2 - "THIS IS" reveals in white serif
+      tl.to(
+        lineOneRef.current,
+        {
+          opacity: 1,
+          y: 0,
+          filter: "blur(0px)",
+          duration: 0.18,
+          ease: "power2.out",
+        },
+        0.20
+      );
+
+      // 0.38 -> 0.58: Step 3 - "SRIRAM K" reveals in golden italic serif
+      tl.to(
+        nameRef.current,
+        {
+          opacity: 1,
+          y: 0,
+          scale: 1,
+          filter: "blur(0px)",
+          duration: 0.20,
+          ease: "power2.out",
+        },
+        0.38
+      );
+
+      // 0.58 -> 0.74: Step 4 - Tagline unveils below the headline
+      tl.to(
+        taglineRef.current,
+        {
+          opacity: 1,
+          y: 0,
+          filter: "blur(0px)",
+          duration: 0.16,
+          ease: "power2.out",
+        },
+        0.58
+      );
+
+      // 0.74 -> 0.88: Step 5 - Action CTAs appear cleanly
+      tl.to(
+        ctasRef.current,
+        {
+          opacity: 1,
+          y: 0,
+          duration: 0.14,
+          ease: "power2.out",
+        },
+        0.74
+      );
+
+      // 0.88 -> 1.00: Hold fully revealed state until end of pin
+      tl.to({}, { duration: 0.12 }, 0.88);
     }, containerRef);
 
     return () => {
@@ -470,7 +583,7 @@ export default function HeroScrollVideo() {
       {/* Pinned Viewport Container (h-screen with h-[100dvh] fallback for exact mobile browser viewport fit) */}
       <div
         ref={pinSectionRef}
-        className="w-full h-screen h-[100dvh] overflow-hidden flex flex-col justify-end relative z-10"
+        className="w-full h-screen h-[100dvh] overflow-hidden flex flex-col justify-between relative z-10 pt-16 sm:pt-20"
       >
         {/* Full-screen Media Layer (Hardware-Accelerated Canvas with Instant Fallback Poster) */}
         <div className="absolute inset-0 z-0 bg-black flex items-center justify-center overflow-hidden">
@@ -507,77 +620,135 @@ export default function HeroScrollVideo() {
           {/* Cinematic Vignette Overlay */}
           <div className="absolute inset-0 pointer-events-none cinematic-vignette" />
 
+          {/* Dark gradient on the left side for cinematic typography contrast */}
+          <div className="absolute inset-y-0 left-0 w-full sm:w-4/5 lg:w-3/5 bg-gradient-to-r from-black/85 via-black/45 to-transparent pointer-events-none z-[1]" />
+
           {/* Gradient Overlays for Visual Depth */}
           <div className="absolute inset-x-0 bottom-0 h-36 sm:h-56 bg-gradient-to-t from-[#050505] via-[#050505]/60 to-transparent pointer-events-none" />
           <div className="absolute inset-x-0 top-0 h-20 sm:h-28 bg-gradient-to-b from-[#050505]/70 to-transparent pointer-events-none" />
         </div>
 
-        {/* Bottom Hero Reveal Area: Positioned strictly in the bottom-left empty space to never obstruct the face */}
-        <div
-          ref={heroRevealRef}
-          className={`relative z-10 pb-6 sm:pb-8 px-4 sm:px-8 max-w-7xl mx-auto w-full transition-all duration-700 ease-out ${
-            prefersReducedMotion
-              ? "opacity-100 translate-y-0 pointer-events-auto"
-              : "opacity-0 translate-y-8 pointer-events-none"
-          }`}
-        >
-          {/* Glass Card: Compact size in bottom-left negative space */}
+        {/* Main Cinematic Left Typography Overlay */}
+        <div className="relative z-10 px-6 sm:px-12 lg:px-20 max-w-7xl w-full my-auto flex flex-col justify-center items-start">
+          {/* Eyebrow with horizontal line divider */}
           <div
-            className="hero-glass-card p-4 sm:p-5 rounded-xl max-w-sm sm:max-w-[400px] border border-white/15 shadow-2xl relative overflow-hidden backdrop-blur-md"
-            style={{
-              backdropFilter: "blur(12px) saturate(140%)",
-              WebkitBackdropFilter: "blur(12px) saturate(140%)",
-            }}
+            ref={eyebrowRef}
+            className="flex items-center gap-3 sm:gap-4 mb-3 sm:mb-4 will-change-[transform,opacity]"
+            style={{ opacity: 0 }}
           >
-            {/* Subtle background glow */}
-            <div className="absolute -top-10 -right-10 w-36 h-36 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none" />
+            <span className="text-[11px] sm:text-xs font-mono uppercase tracking-[0.28em] text-neutral-400">
+              AI &amp; SOFTWARE BUILDER
+            </span>
+            <span className="w-10 sm:w-16 h-[1px] bg-white/20" />
+          </div>
 
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/[0.06] border border-white/10 text-[11px] font-mono text-neutral-300 mb-2">
-              <Sparkles className="w-3 h-3 text-emerald-400" />
-              <span>Awakening Complete // Final Reveal</span>
-            </div>
-
-            {/* Identity & Subtitle */}
-            <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white mb-0.5 uppercase">
+          {/* Main Cinematic Serif Headline: Cormorant Garamond */}
+          <h1 className="font-cinematic font-black tracking-tight text-white uppercase text-5xl sm:text-7xl lg:text-[5.5rem] xl:text-[6.5rem] leading-[0.92] mb-3 sm:mb-4">
+            <span
+              ref={lineOneRef}
+              className="block will-change-[transform,opacity]"
+              style={{ opacity: 0 }}
+            >
+              THIS IS
+            </span>
+            <span
+              ref={nameRef}
+              className="block italic font-normal tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-[#fef3c7] via-[#e5c07b] to-[#d4af37] drop-shadow-[0_4px_28px_rgba(229,192,123,0.30)] will-change-[transform,opacity]"
+              style={{ opacity: 0 }}
+            >
               SRIRAM K
-            </h1>
-            <p className="text-xs sm:text-sm font-semibold text-emerald-400 tracking-wide mb-2">
-              AI &amp; Software Builder | Founder, Wave Init Solutions
-            </p>
-            <p className="text-xs text-neutral-300 leading-relaxed mb-3 max-w-xs sm:max-w-sm">
-              Transforming artificial intelligence, deep learning, and software architecture into practical, scalable digital experiences.
-            </p>
+            </span>
+          </h1>
 
-            {/* CTAs: Compact, clean row in empty bottom-left space */}
-            <div className="flex flex-wrap items-center gap-2">
-              <a
-                href="#projects"
-                className="px-3 py-1.5 rounded-lg bg-white text-black font-semibold text-xs hover:bg-neutral-200 transition-all flex items-center gap-1.5 shadow-md"
-                id="hero-explore-work-cta"
-              >
-                <span>Explore Work</span>
-                <ChevronDown className="w-3.5 h-3.5" />
-              </a>
+          {/* Tagline */}
+          <p
+            ref={taglineRef}
+            className="font-mono text-xs sm:text-sm tracking-[0.2em] text-neutral-300 uppercase max-w-lg sm:max-w-xl leading-relaxed mb-6 sm:mb-8 will-change-[transform,opacity]"
+            style={{ opacity: 0 }}
+          >
+            BUILDING INTELLIGENT DIGITAL EXPERIENCES THAT TRANSFORM REALITY.
+          </p>
 
-              <a
-                href={PORTFOLIO_DATA.links.waveInitSolutions}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition-all flex items-center gap-1.5 shadow-md group"
-                id="hero-wave-init-cta"
-              >
-                <span>Wave Init Solutions</span>
-                <ArrowUpRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
-              </a>
+          {/* Action CTAs */}
+          <div
+            ref={ctasRef}
+            className="flex flex-wrap items-center gap-3 sm:gap-4 will-change-[transform,opacity]"
+            style={{ opacity: 0 }}
+          >
+            <a
+              href="#projects"
+              className="px-5 sm:px-6 py-2.5 sm:py-3 rounded-full bg-white text-black font-semibold text-xs sm:text-sm hover:bg-neutral-200 transition-all flex items-center gap-2 shadow-lg hover:shadow-xl"
+              id="hero-explore-work-cta"
+            >
+              <span>Explore Work</span>
+              <ChevronDown className="w-4 h-4" />
+            </a>
 
-              <a
-                href="#contact"
-                className="px-3 py-1.5 rounded-lg bg-white/[0.08] hover:bg-white/[0.14] text-white border border-white/15 font-semibold text-xs transition-all flex items-center gap-1.5"
-                id="hero-get-in-touch-cta"
-              >
-                <span>Contact</span>
-              </a>
+            <a
+              href={PORTFOLIO_DATA.links.waveInitSolutions}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-5 sm:px-6 py-2.5 sm:py-3 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs sm:text-sm transition-all flex items-center gap-2 shadow-lg group"
+              id="hero-wave-init-cta"
+            >
+              <span>Wave Init Solutions</span>
+              <ArrowUpRight className="w-4 h-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+            </a>
+
+            <a
+              href="#contact"
+              className="px-5 sm:px-6 py-2.5 sm:py-3 rounded-full bg-white/[0.08] hover:bg-white/[0.18] text-white border border-white/20 font-semibold text-xs sm:text-sm transition-all flex items-center gap-2 backdrop-blur-md"
+              id="hero-get-in-touch-cta"
+            >
+              <span>Contact</span>
+            </a>
+          </div>
+        </div>
+
+        {/* Bottom Bar: Indicators and Social links */}
+        <div className="relative z-10 w-full px-6 sm:px-12 lg:px-20 pb-6 sm:pb-8 flex items-center justify-between pointer-events-none">
+          {/* Bottom Left: SCROLL indicator */}
+          <div className="flex items-center gap-2 sm:gap-3">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.8)]" />
+            <span className="w-8 sm:w-12 h-[1px] bg-white/20" />
+            <span className="text-[10px] font-mono tracking-[0.25em] text-neutral-400 uppercase">
+              SCROLL
+            </span>
+          </div>
+
+          {/* Bottom Center: SCROLL TO EXPLORE indicator */}
+          <div
+            ref={scrollIndicatorRef}
+            className="hidden sm:flex flex-col items-center gap-2 text-center -translate-x-1/2 left-1/2 absolute transition-opacity duration-500"
+          >
+            <span className="text-[10px] font-mono tracking-[0.25em] text-neutral-400 uppercase">
+              SCROLL TO EXPLORE
+            </span>
+            <div className="w-4 h-7 rounded-full border border-white/25 flex items-start justify-center p-1">
+              <div className="w-1 h-2 rounded-full bg-amber-400 animate-bounce" />
             </div>
+          </div>
+
+          {/* Bottom Right: Social icons */}
+          <div className="flex items-center gap-4 pointer-events-auto">
+            <a
+              href={PORTFOLIO_DATA.links.github}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="GitHub"
+              className="text-neutral-400 hover:text-white transition-colors"
+            >
+              <GithubIcon className="w-4 h-4" />
+            </a>
+            <a
+              href={PORTFOLIO_DATA.links.linkedin}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="LinkedIn"
+              className="text-neutral-400 hover:text-white transition-colors"
+            >
+              <LinkedinIcon className="w-4 h-4" />
+            </a>
           </div>
         </div>
       </div>

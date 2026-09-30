@@ -5,13 +5,30 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 
 // ---------------------------------------------------------------------------
-// Mobile detection - module level to avoid per-render checks
+// Mobile detection hook for dynamic window resize & orientation
 // ---------------------------------------------------------------------------
-const isMobileDevice =
-  typeof window !== "undefined" &&
-  (window.innerWidth < 768 ||
-    (("ontouchstart" in window || (typeof navigator !== "undefined" && navigator.maxTouchPoints > 0)) &&
-      window.innerWidth < 1024));
+function useIsMobile() {
+  const [isMobile, setIsMobile] = React.useState(false);
+
+  useEffect(() => {
+    const check = () => {
+      setIsMobile(
+        window.innerWidth < 768 ||
+          (("ontouchstart" in window || (navigator.maxTouchPoints > 0)) &&
+            window.innerWidth < 1024)
+      );
+    };
+    check();
+    window.addEventListener("resize", check, { passive: true });
+    window.addEventListener("orientationchange", check, { passive: true });
+    return () => {
+      window.removeEventListener("resize", check);
+      window.removeEventListener("orientationchange", check);
+    };
+  }, []);
+
+  return isMobile;
+}
 
 // ---------------------------------------------------------------------------
 // Shared scroll state - updated via passive listener, 0 React re-renders
@@ -22,15 +39,33 @@ const scrollState = {
 };
 
 if (typeof window !== "undefined") {
-  const onScroll = () => {
-    const maxScroll = Math.max(
-      1,
-      document.documentElement.scrollHeight - window.innerHeight
-    );
-    scrollState.scrollY = window.scrollY;
-    scrollState.progress = Math.min(1, Math.max(0, window.scrollY / maxScroll));
+  let cachedMaxScroll = 1;
+  const updateMaxScroll = () => {
+    const docH = document.documentElement ? document.documentElement.scrollHeight : 0;
+    const bodyH = document.body ? document.body.scrollHeight : 0;
+    cachedMaxScroll = Math.max(1, Math.max(docH, bodyH) - window.innerHeight);
   };
+
+  const onScroll = () => {
+    scrollState.scrollY = window.scrollY;
+    scrollState.progress = Math.min(1, Math.max(0, window.scrollY / cachedMaxScroll));
+  };
+
   window.addEventListener("scroll", onScroll, { passive: true });
+  window.addEventListener("resize", updateMaxScroll, { passive: true });
+  window.addEventListener("orientationchange", updateMaxScroll, { passive: true });
+  window.addEventListener("videoScrolledChange", updateMaxScroll, { passive: true });
+
+  if (typeof ResizeObserver !== "undefined") {
+    const ro = new ResizeObserver(updateMaxScroll);
+    if (document.documentElement) ro.observe(document.documentElement);
+  }
+
+  if (document.readyState === "complete") {
+    updateMaxScroll();
+  } else {
+    window.addEventListener("load", updateMaxScroll, { once: true });
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -84,43 +119,55 @@ const pointsMat = new THREE.PointsMaterial({
 
 // ---------------------------------------------------------------------------
 // FloatingGeometry - Smooth scroll-damped rotation and vertical parallax
+// Dynamically adjusts scale & position inside mobile viewport bounds
 // ---------------------------------------------------------------------------
 function FloatingGeometry() {
   const meshRef = useRef<THREE.Mesh>(null);
   const wireframeRef = useRef<THREE.LineSegments>(null);
   const smoothedScrollRef = useRef<number>(0);
+  const { viewport, size } = useThree();
+  const isMobile = size.width < 768;
 
-  useFrame((_, delta) => {
+  // On desktop: position [3.2, 0, -2], scale 1.0
+  // On mobile: position inside visible bounds so 3D objects never clip or leave screen
+  const posX = isMobile ? Math.min(viewport.width * 0.28, 0.75) : 3.2;
+  const posYBase = isMobile ? 0.2 : 0;
+  const posZ = isMobile ? -1.5 : -2;
+  const geomScale = isMobile ? 0.52 : 1;
+
+  useFrame((state, delta) => {
     if (document.hidden) return;
     const d = Math.min(delta, 0.05);
 
-    // Smooth lerp damping towards target scroll
+    // Smooth responsive damping towards target scroll progress (0-1)
     smoothedScrollRef.current = THREE.MathUtils.lerp(
       smoothedScrollRef.current,
       scrollState.progress,
-      d * 3.5
+      Math.min(1, d * 4.5)
     );
     const sp = smoothedScrollRef.current;
 
-    // Fluid base rotation + scroll momentum
-    const rotStepX = d * (0.15 + sp * 0.35);
-    const rotStepY = d * (0.2 + sp * 0.45);
-    const posY = -sp * 2.5;
+    // Synchronized scroll rotation + gentle ambient idle drift (bounded, no runaway)
+    const ambientX = Math.sin(state.clock.elapsedTime * 0.35) * 0.08;
+    const ambientY = state.clock.elapsedTime * 0.05;
+    const rotX = ambientX + sp * Math.PI * 0.7;
+    const rotY = ambientY + sp * Math.PI * 1.2;
+    const posY = posYBase - sp * (isMobile ? 1.0 : 1.8);
 
     if (meshRef.current) {
-      meshRef.current.rotation.x += rotStepX;
-      meshRef.current.rotation.y += rotStepY;
+      meshRef.current.rotation.x = rotX;
+      meshRef.current.rotation.y = rotY;
       meshRef.current.position.y = posY;
     }
     if (wireframeRef.current) {
-      wireframeRef.current.rotation.x += rotStepX;
-      wireframeRef.current.rotation.y += rotStepY;
+      wireframeRef.current.rotation.x = rotX;
+      wireframeRef.current.rotation.y = rotY;
       wireframeRef.current.position.y = posY;
     }
   });
 
   return (
-    <group position={[3.2, 0, -2]}>
+    <group position={[posX, posYBase, posZ]} scale={geomScale}>
       <mesh ref={meshRef} geometry={icosaGeo} material={icosaMat} />
       <lineSegments
         ref={wireframeRef}
@@ -133,10 +180,18 @@ function FloatingGeometry() {
 
 // ---------------------------------------------------------------------------
 // SecondaryNode - Counter-parallax and bobbing
+// Scaled and framed within mobile boundaries
 // ---------------------------------------------------------------------------
 function SecondaryNode() {
   const groupRef = useRef<THREE.Group>(null);
   const smoothedScrollRef = useRef<number>(0);
+  const { viewport, size } = useThree();
+  const isMobile = size.width < 768;
+
+  const baseX = isMobile ? -Math.min(viewport.width * 0.26, 0.7) : -3.5;
+  const baseY = isMobile ? -1.0 : -1.5;
+  const baseZ = isMobile ? -1.8 : -3;
+  const geomScale = isMobile ? 0.48 : 1;
 
   useFrame((state, delta) => {
     if (document.hidden) return;
@@ -145,21 +200,27 @@ function SecondaryNode() {
     smoothedScrollRef.current = THREE.MathUtils.lerp(
       smoothedScrollRef.current,
       scrollState.progress,
-      d * 3.0
+      Math.min(1, d * 4.5)
     );
     const sp = smoothedScrollRef.current;
 
     if (groupRef.current) {
-      groupRef.current.rotation.y -= d * (0.18 + sp * 0.25);
-      groupRef.current.rotation.z += d * 0.12;
+      const ambientY = -state.clock.elapsedTime * 0.05;
+      const rotY = ambientY - sp * Math.PI * 0.85;
+      const rotZ = Math.sin(state.clock.elapsedTime * 0.4) * 0.05 + sp * 0.3;
+
+      groupRef.current.rotation.y = rotY;
+      groupRef.current.rotation.z = rotZ;
       groupRef.current.position.y =
-        -1.5 + Math.sin(state.clock.elapsedTime * 0.8) * 0.2 + sp * 1.5;
-      groupRef.current.position.x = -3.5 + sp * 0.6;
+        baseY +
+        Math.sin(state.clock.elapsedTime * 0.6) * (isMobile ? 0.08 : 0.14) +
+        sp * (isMobile ? 0.6 : 1.1);
+      groupRef.current.position.x = baseX + sp * (isMobile ? 0.2 : 0.45);
     }
   });
 
   return (
-    <group ref={groupRef} position={[-3.5, -1.5, -3]}>
+    <group ref={groupRef} position={[baseX, baseY, baseZ]} scale={geomScale}>
       <mesh geometry={octaGeo} material={octaMat} />
       <lineSegments geometry={octaWireframeGeo} material={octaWireMat} />
     </group>
@@ -168,23 +229,28 @@ function SecondaryNode() {
 
 // ---------------------------------------------------------------------------
 // SubtleDepthParticles - Z-depth drift on scroll for enhanced spatial depth
+// Reduced particle count on mobile for low GPU overhead
 // ---------------------------------------------------------------------------
 function SubtleDepthParticles() {
-  const count = isMobileDevice ? 25 : 45;
+  const { size } = useThree();
+  const isMobile = size.width < 768;
+  const count = isMobile ? 20 : 45;
   const pointsRef = useRef<THREE.Points>(null);
   const smoothedScrollRef = useRef<number>(0);
 
   const geometry = useMemo(() => {
     const geo = new THREE.BufferGeometry();
     const pos = new Float32Array(count * 3);
+    const spreadX = isMobile ? 8 : 16;
+    const spreadY = isMobile ? 10 : 12;
     for (let i = 0; i < count; i++) {
-      pos[i * 3] = (Math.random() - 0.5) * 16;
-      pos[i * 3 + 1] = (Math.random() - 0.5) * 12;
+      pos[i * 3] = (Math.random() - 0.5) * spreadX;
+      pos[i * 3 + 1] = (Math.random() - 0.5) * spreadY;
       pos[i * 3 + 2] = (Math.random() - 0.5) * 8 - 2;
     }
     geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
     return geo;
-  }, [count]);
+  }, [count, isMobile]);
 
   useFrame((_, delta) => {
     if (document.hidden) return;
@@ -193,13 +259,13 @@ function SubtleDepthParticles() {
     smoothedScrollRef.current = THREE.MathUtils.lerp(
       smoothedScrollRef.current,
       scrollState.progress,
-      d * 2.5
+      Math.min(1, d * 4.5)
     );
     const sp = smoothedScrollRef.current;
 
     if (pointsRef.current) {
-      pointsRef.current.rotation.y += d * 0.02;
-      pointsRef.current.position.z = sp * 2.0;
+      pointsRef.current.rotation.y = sp * 0.4;
+      pointsRef.current.position.z = sp * (isMobile ? 1.2 : 1.8);
     }
   });
 
@@ -210,8 +276,9 @@ function SubtleDepthParticles() {
 // ScrollCameraController - Subtle camera tilt and dolly tied to scroll
 // ---------------------------------------------------------------------------
 function ScrollCameraController() {
-  const { camera } = useThree();
+  const { camera, size } = useThree();
   const smoothedScrollRef = useRef<number>(0);
+  const isMobile = size.width < 768;
 
   useFrame((_, delta) => {
     if (document.hidden) return;
@@ -220,12 +287,12 @@ function ScrollCameraController() {
     smoothedScrollRef.current = THREE.MathUtils.lerp(
       smoothedScrollRef.current,
       scrollState.progress,
-      d * 2.8
+      Math.min(1, d * 4.5)
     );
     const sp = smoothedScrollRef.current;
 
-    camera.position.y = -sp * 0.7;
-    camera.position.z = 6 + sp * 0.4;
+    camera.position.y = -sp * (isMobile ? 0.3 : 0.55);
+    camera.position.z = (isMobile ? 5.8 : 6.0) + sp * (isMobile ? 0.25 : 0.35);
   });
 
   return null;
@@ -234,11 +301,11 @@ function ScrollCameraController() {
 // ---------------------------------------------------------------------------
 // MouseTrackerLight - Updates only when pointer moves significantly
 // ---------------------------------------------------------------------------
-function MouseTrackerLight() {
+function MouseTrackerLight({ isMobile }: { isMobile: boolean }) {
   const lightRef = useRef<THREE.PointLight>(null);
   const prevPosRef = useRef({ x: 0, y: 0 });
 
-  if (isMobileDevice) return null;
+  if (isMobile) return null;
 
   useFrame(({ pointer }) => {
     if (document.hidden || !lightRef.current) return;
@@ -267,7 +334,8 @@ function MouseTrackerLight() {
 // ---------------------------------------------------------------------------
 // ThreeCanvas Component
 // ---------------------------------------------------------------------------
-export default function ThreeCanvas() {
+export default function ThreeCanvas({ active = true }: { active?: boolean }) {
+  const isMobile = useIsMobile();
   const prefersReducedMotionRef = useRef(
     typeof window !== "undefined"
       ? window.matchMedia("(prefers-reduced-motion: reduce)").matches
@@ -297,7 +365,7 @@ export default function ThreeCanvas() {
 
   // Device pixel ratio capped to prevent high-DPI fillrate bottlenecks:
   // Desktop max 1.5, Mobile max 1.0
-  const dprRange: [number, number] = isMobileDevice ? [1, 1] : [1, 1.5];
+  const dprRange: [number, number] = isMobile ? [1, 1] : [1, 1.5];
 
   return (
     <div
@@ -311,18 +379,18 @@ export default function ThreeCanvas() {
         gl={{
           antialias: false,
           alpha: true,
-          powerPreference: isMobileDevice ? "default" : "high-performance",
+          powerPreference: isMobile ? "default" : "high-performance",
           stencil: false,
           depth: true,
           failIfMajorPerformanceCaveat: false,
         }}
         dpr={dprRange}
-        frameloop="always"
+        frameloop={active ? "always" : "never"}
         performance={{ min: 0.5 }}
       >
         <ambientLight intensity={0.5} />
         <directionalLight position={[5, 5, 5]} intensity={0.8} color="#ffffff" />
-        {!isMobileDevice && <MouseTrackerLight />}
+        <MouseTrackerLight isMobile={isMobile} />
         <ScrollCameraController />
         <FloatingGeometry />
         <SecondaryNode />

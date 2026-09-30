@@ -14,9 +14,9 @@ export default function Footer() {
   };
 
   return (
-    <footer className="relative z-10 border-t border-white/5 bg-[#030305] text-neutral-400 py-16 px-4 sm:px-6 lg:px-8">
+    <footer className="relative z-10 border-t border-white/5 bg-[#030305] text-neutral-400 py-12 sm:py-16 px-4 sm:px-6 lg:px-8 pb-[max(3rem,env(safe-area-inset-bottom,0px))]">
       <div className="max-w-7xl mx-auto">
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-10 pb-12 border-b border-white/5">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-8 sm:gap-10 pb-8 sm:pb-12 border-b border-white/5">
           {/* Brand & Identity */}
           <div className="md:col-span-5 flex flex-col gap-4">
             <div className="flex items-center gap-3">

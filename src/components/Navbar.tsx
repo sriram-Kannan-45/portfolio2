@@ -17,7 +17,7 @@ export default function Navbar({ visible }: NavbarProps) {
   const visibleRef = useRef(false);
 
   useEffect(() => {
-    // 1. Listen for video completion event from HeroScrollVideo
+    // 1. Listen for video completion event from HeroScrollVideo ScrollTrigger
     const handleVideoScrolled = (e: Event) => {
       const customEvent = e as CustomEvent<{ isVideoDone: boolean }>;
       const isDone = Boolean(customEvent.detail?.isVideoDone);
@@ -27,41 +27,27 @@ export default function Navbar({ visible }: NavbarProps) {
       }
     };
 
-    // 2. Direct scroll listener to check position
+    // 2. Direct scroll listener fallback (pinned video hero ends at ~4.8x viewport height)
     const handleScroll = () => {
-      const isPast = window.scrollY > 40;
-      if (isPast !== scrolledRef.current) {
-        scrolledRef.current = isPast;
-        setScrolled(isPast);
-      }
+      const heroThreshold = window.innerHeight * 4.7;
+      const isPastHero = window.scrollY >= heroThreshold;
 
-      // If user scrolled to About section or below, ensure menu is visible
-      const aboutEl = document.getElementById("about");
-      if (aboutEl) {
-        const rect = aboutEl.getBoundingClientRect();
-        if (rect.top <= window.innerHeight * 0.9) {
-          if (!visibleRef.current) {
-            visibleRef.current = true;
-            setInternalVisible(true);
-          }
-          return;
-        }
-      }
-
-      // If user scrolls back to the very top hero video, hide menu
-      if (window.scrollY < 50 && visibleRef.current) {
-        visibleRef.current = false;
-        setInternalVisible(false);
+      if (isPastHero !== visibleRef.current) {
+        visibleRef.current = isPastHero;
+        setInternalVisible(isPastHero);
       }
     };
 
     window.addEventListener("videoScrolledChange", handleVideoScrolled);
     window.addEventListener("scroll", handleScroll, { passive: true });
+    window.addEventListener("resize", handleScroll, { passive: true });
+
     handleScroll();
 
     return () => {
       window.removeEventListener("videoScrolledChange", handleVideoScrolled);
       window.removeEventListener("scroll", handleScroll);
+      window.removeEventListener("resize", handleScroll);
     };
   }, []);
 
@@ -86,15 +72,15 @@ export default function Navbar({ visible }: NavbarProps) {
 
   return (
     <header
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ease-out ${
+      className={`fixed top-0 left-0 right-0 z-50 pt-[env(safe-area-inset-top,0px)] bg-[#050505]/85 backdrop-blur-md border-b border-white/5 py-3 shadow-2xl transition-[opacity,transform] duration-500 ${
         !isMenuVisible
-          ? "-translate-y-full opacity-0 pointer-events-none"
-          : "translate-y-0 opacity-100 pointer-events-auto"
-      } ${
-        scrolled
-          ? "bg-[#050505]/85 backdrop-blur-md border-b border-white/5 py-3 shadow-2xl"
-          : "bg-transparent py-5"
+          ? "opacity-0 -translate-y-[15px] pointer-events-none invisible"
+          : "opacity-100 translate-y-0 pointer-events-auto visible"
       }`}
+      style={{
+        transitionTimingFunction: "cubic-bezier(0.16, 1, 0.3, 1)",
+      }}
+      aria-hidden={!isMenuVisible}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between">
@@ -170,19 +156,19 @@ export default function Navbar({ visible }: NavbarProps) {
           </div>
 
           {/* Mobile Menu Toggle */}
-          <div className="flex sm:hidden items-center gap-2">
+          <div className="flex sm:hidden items-center gap-1">
             <a
               href={PORTFOLIO_DATA.links.resumePdf}
               target="_blank"
               rel="noopener noreferrer"
-              className="p-2 text-neutral-300 hover:text-white"
+              className="p-2 min-w-[38px] min-h-[38px] flex items-center justify-center text-neutral-300 hover:text-white"
               aria-label="Download Resume"
             >
               <Download className="w-4 h-4" />
             </a>
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="p-2 text-neutral-400 hover:text-white transition-colors"
+              className="p-2 min-w-[38px] min-h-[38px] flex items-center justify-center text-neutral-400 hover:text-white transition-colors"
               aria-label="Toggle Navigation Menu"
               id="mobile-menu-toggle"
             >
@@ -194,7 +180,7 @@ export default function Navbar({ visible }: NavbarProps) {
 
       {/* Mobile Dropdown Menu */}
       {mobileMenuOpen && (
-        <div className="sm:hidden bg-[#0a0a0e] border-b border-white/10 px-4 pt-4 pb-6 mt-3 shadow-2xl animate-in slide-in-from-top-4 duration-200">
+        <div className="sm:hidden bg-[#0a0a0e] border-b border-white/10 px-4 pt-4 pb-6 mt-2 shadow-2xl max-h-[calc(100dvh-5rem)] overflow-y-auto animate-in slide-in-from-top-4 duration-200">
           <div className="flex flex-col gap-2">
             <div className="px-3 py-2 rounded-lg bg-emerald-950/30 border border-emerald-500/20 text-xs text-emerald-400 font-mono mb-2 flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-emerald-400" />

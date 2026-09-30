@@ -11,6 +11,7 @@ import FounderSection from "@/components/FounderSection";
 import ExperienceSection from "@/components/ExperienceSection";
 import ContactSection from "@/components/ContactSection";
 import Footer from "@/components/Footer";
+import SmoothScroll from "@/components/SmoothScroll";
 
 // Lazy-load Three.js WebGL background with SSR disabled to prevent hydration errors
 const ThreeCanvas = dynamic(() => import("@/components/ThreeCanvas"), {
@@ -71,31 +72,11 @@ export default function Home() {
     };
   }, []);
 
-  // Smooth scroll for in-page anchor clicks without forcing global scroll-behavior: smooth
-  // which causes scrollbar thumb drag lag
-  useEffect(() => {
-    const handleAnchorClick = (e: MouseEvent) => {
-      const target = (e.target as HTMLElement).closest('a[href^="#"]');
-      if (!target) return;
-      const href = target.getAttribute("href");
-      if (!href || href === "#") return;
-      try {
-        const element = document.querySelector(href);
-        if (element) {
-          e.preventDefault();
-          element.scrollIntoView({ behavior: "smooth" });
-          window.history.pushState(null, "", href);
-        }
-      } catch {
-        // Ignore invalid selectors
-      }
-    };
-    document.addEventListener("click", handleAnchorClick);
-    return () => document.removeEventListener("click", handleAnchorClick);
-  }, []);
-
   return (
     <main className="relative min-h-screen bg-[#050505] text-[#f3f4f6] overflow-x-hidden">
+      {/* Global Authoritative Smooth Scroll Controller */}
+      <SmoothScroll />
+
       {/* 
         Background Visual Atmosphere (3D Diamond Depth Layer):
         Hidden completely while scrolling through the Awakening video hero.
@@ -108,7 +89,7 @@ export default function Home() {
         aria-hidden="true"
       >
         {/* Background Interactive 3D Depth Layer */}
-        <ThreeCanvas />
+        <ThreeCanvas active={isPastVideo} />
       </div>
 
       {/* Top Navigation - revealed only after video frames are fully scrolled */}
