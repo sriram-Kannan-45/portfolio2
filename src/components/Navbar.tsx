@@ -40,7 +40,8 @@ export default function Navbar({ visible }: NavbarProps) {
     const checkScrollAndActive = () => {
       const scrollY = window.scrollY;
       const windowHeight = window.innerHeight;
-      const heroThreshold = windowHeight * 4.7;
+      const isMobile = window.innerWidth < 640;
+      const heroThreshold = windowHeight * (isMobile ? 4.0 : 4.7);
       const isPastHero = scrollY >= heroThreshold;
 
       if (isPastHero !== visibleRef.current) {
@@ -60,7 +61,7 @@ export default function Navbar({ visible }: NavbarProps) {
       }
 
       // If before or in the pinned hero video
-      if (scrollY < windowHeight * 4.5) {
+      if (scrollY < windowHeight * (isMobile ? 3.9 : 4.5)) {
         setActiveSection("hero");
         return;
       }

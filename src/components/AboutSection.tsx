@@ -73,7 +73,7 @@ export default function AboutSection() {
               src={PORTFOLIO_DATA.identity.portrait}
               alt="Sriram K — Founder of Wave Init Solutions"
               fill
-              className="object-cover object-top transition-transform duration-700 group-hover:scale-105"
+              className="object-cover object-center transition-transform duration-700 group-hover:scale-105"
               sizes="(max-width: 768px) 100vw, 400px"
               priority
             />

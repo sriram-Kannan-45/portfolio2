@@ -378,7 +378,7 @@ export default function HeroScrollVideo() {
         scrollTrigger: {
           trigger: containerRef.current,
           start: "top top",
-          end: () => `+=${Math.round(window.innerHeight * 4.8)}`,
+          end: () => `+=${Math.round(window.innerHeight * (isMobileRef.current ? 4.1 : 4.8))}`,
           pin: pinSectionRef.current,
           pinSpacing: true,
           anticipatePin: 1,
@@ -412,35 +412,44 @@ export default function HeroScrollVideo() {
         },
       });
 
-      // Initial states for sequential reveal (starts hidden with gentle blur & offset)
+      // Initial states for sequential reveal:
+      // Mobile uses tighter offsets and subtle blur to remain entirely below the chin and keep 60fps silky smooth
+      const isMobile = typeof window !== "undefined" && window.innerWidth < 640;
+      const eyebrowY = isMobile ? 10 : 20;
+      const lineOneY = isMobile ? 14 : 28;
+      const nameY = isMobile ? 16 : 32;
+      const taglineY = isMobile ? 10 : 20;
+      const ctasY = isMobile ? 10 : 18;
+      const blurAmount = isMobile ? 4 : 10;
+
       gsap.set(eyebrowRef.current, {
         opacity: 0,
-        y: 20,
-        filter: "blur(8px)",
+        y: eyebrowY,
+        filter: `blur(${blurAmount}px)`,
       });
 
       gsap.set(lineOneRef.current, {
         opacity: 0,
-        y: 28,
-        filter: "blur(10px)",
+        y: lineOneY,
+        filter: `blur(${blurAmount}px)`,
       });
 
       gsap.set(nameRef.current, {
         opacity: 0,
-        y: 32,
-        scale: 0.95,
-        filter: "blur(12px)",
+        y: nameY,
+        scale: isMobile ? 0.97 : 0.95,
+        filter: `blur(${blurAmount}px)`,
       });
 
       gsap.set(taglineRef.current, {
         opacity: 0,
-        y: 20,
-        filter: "blur(8px)",
+        y: taglineY,
+        filter: `blur(${blurAmount}px)`,
       });
 
       gsap.set(ctasRef.current, {
         opacity: 0,
-        y: 18,
+        y: ctasY,
       });
 
       gsap.set(scrollIndicatorRef.current, {
@@ -583,7 +592,7 @@ export default function HeroScrollVideo() {
       {/* Pinned Viewport Container (h-screen with h-[100dvh] fallback for exact mobile browser viewport fit) */}
       <div
         ref={pinSectionRef}
-        className="w-full h-screen h-[100dvh] overflow-hidden flex flex-col justify-between relative z-10 pt-16 sm:pt-20"
+        className="w-full h-screen h-[100dvh] overflow-hidden flex flex-col justify-between relative z-10 pt-14 sm:pt-20"
       >
         {/* Full-screen Media Layer (Hardware-Accelerated Canvas with Instant Fallback Poster) */}
         <div className="absolute inset-0 z-0 bg-black flex items-center justify-center overflow-hidden">
@@ -593,7 +602,7 @@ export default function HeroScrollVideo() {
               ref={posterRef}
               src="/frames/desktop/frame_0001.webp"
               alt="Awakening cinematic inception"
-              className="absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ease-out"
+              className="hero-media-cover absolute inset-0 w-full h-full object-cover object-[54.5%_center] sm:object-center transition-opacity duration-500 ease-out"
               style={{
                 width: "100%",
                 height: "100%",
@@ -608,7 +617,7 @@ export default function HeroScrollVideo() {
             ref={canvasRef}
             width={DESKTOP_WIDTH}
             height={DESKTOP_HEIGHT}
-            className="absolute inset-0 w-full h-full object-cover pointer-events-none transition-[filter] duration-700 ease-out"
+            className="hero-media-cover absolute inset-0 w-full h-full object-cover object-[54.5%_center] sm:object-center pointer-events-none transition-[filter] duration-700 ease-out"
             style={{
               width: "100%",
               height: "100%",
@@ -620,30 +629,33 @@ export default function HeroScrollVideo() {
           {/* Cinematic Vignette Overlay */}
           <div className="absolute inset-0 pointer-events-none cinematic-vignette" />
 
-          {/* Dark gradient on the left side for cinematic typography contrast */}
-          <div className="absolute inset-y-0 left-0 w-full sm:w-4/5 lg:w-3/5 bg-gradient-to-r from-black/85 via-black/45 to-transparent pointer-events-none z-[1]" />
+          {/* Dark gradient on the left side for cinematic typography contrast (desktop only) */}
+          <div className="hidden sm:block absolute inset-y-0 left-0 sm:w-4/5 lg:w-3/5 bg-gradient-to-r from-black/85 via-black/45 to-transparent pointer-events-none z-[1]" />
+
+          {/* Mobile-specific bottom gradient: provides contrast for lower text while keeping the face in the upper half completely clear and bright */}
+          <div className="block sm:hidden absolute inset-x-0 bottom-0 h-[56%] bg-gradient-to-t from-[#050505] via-[#050505]/85 via-50% to-transparent pointer-events-none z-[1]" />
 
           {/* Gradient Overlays for Visual Depth */}
-          <div className="absolute inset-x-0 bottom-0 h-36 sm:h-56 bg-gradient-to-t from-[#050505] via-[#050505]/60 to-transparent pointer-events-none" />
-          <div className="absolute inset-x-0 top-0 h-20 sm:h-28 bg-gradient-to-b from-[#050505]/70 to-transparent pointer-events-none" />
+          <div className="absolute inset-x-0 bottom-0 h-28 sm:h-56 bg-gradient-to-t from-[#050505] via-[#050505]/60 to-transparent pointer-events-none" />
+          <div className="absolute inset-x-0 top-0 h-10 sm:h-28 bg-gradient-to-b from-[#050505]/30 sm:from-[#050505]/70 to-transparent pointer-events-none" />
         </div>
 
-        {/* Main Cinematic Left Typography Overlay */}
-        <div className="relative z-10 px-5 sm:px-12 lg:px-20 max-w-7xl w-full my-auto flex flex-col justify-center items-start">
+        {/* Main Cinematic Typography Overlay: positioned in lower section on mobile so face remains completely unobstructed */}
+        <div className="relative z-10 px-4 xs:px-5 sm:px-12 lg:px-20 max-w-7xl w-full mt-auto mb-2 sm:my-auto sm:mb-0 flex flex-col justify-end sm:justify-center items-start">
           {/* Eyebrow with horizontal line divider */}
           <div
             ref={eyebrowRef}
-            className="flex items-center gap-2.5 sm:gap-4 mb-2.5 sm:mb-4 will-change-[transform,opacity]"
+            className="flex items-center gap-2 sm:gap-4 mb-1.5 sm:mb-4 will-change-[transform,opacity]"
             style={{ opacity: 0 }}
           >
-            <span className="text-[10px] min-[380px]:text-[11px] sm:text-xs font-mono uppercase tracking-[0.18em] sm:tracking-[0.28em] text-neutral-400">
+            <span className="text-[9px] min-[380px]:text-[11px] sm:text-xs font-mono uppercase tracking-[0.16em] sm:tracking-[0.28em] text-neutral-400">
               AI &amp; SOFTWARE BUILDER
             </span>
-            <span className="w-8 sm:w-16 h-[1px] bg-white/20" />
+            <span className="w-6 sm:w-16 h-[1px] bg-white/20" />
           </div>
 
           {/* Main Cinematic Serif Headline: Cormorant Garamond */}
-          <h1 className="font-cinematic font-black tracking-tight text-white uppercase text-4xl min-[380px]:text-5xl sm:text-7xl lg:text-[5.5rem] xl:text-[6.5rem] leading-[0.92] mb-3 sm:mb-4">
+          <h1 className="font-cinematic font-black tracking-tight text-white uppercase text-3xl min-[380px]:text-4xl sm:text-7xl lg:text-[5.5rem] xl:text-[6.5rem] leading-[0.94] sm:leading-[0.92] mb-2 sm:mb-4">
             <span
               ref={lineOneRef}
               className="block will-change-[transform,opacity]"
@@ -663,7 +675,7 @@ export default function HeroScrollVideo() {
           {/* Tagline */}
           <p
             ref={taglineRef}
-            className="font-mono text-[11px] sm:text-sm tracking-[0.14em] sm:tracking-[0.2em] text-neutral-300 uppercase max-w-lg sm:max-w-xl leading-relaxed mb-5 sm:mb-8 will-change-[transform,opacity]"
+            className="font-mono text-[10px] min-[380px]:text-[11px] sm:text-sm tracking-[0.12em] sm:tracking-[0.2em] text-neutral-300 uppercase max-w-sm sm:max-w-xl leading-relaxed mb-3 sm:mb-8 will-change-[transform,opacity]"
             style={{ opacity: 0 }}
           >
             BUILDING INTELLIGENT DIGITAL EXPERIENCES THAT TRANSFORM REALITY.
@@ -672,32 +684,32 @@ export default function HeroScrollVideo() {
           {/* Action CTAs */}
           <div
             ref={ctasRef}
-            className="flex flex-wrap items-center gap-2 sm:gap-4 will-change-[transform,opacity]"
+            className="flex flex-wrap items-center gap-1.5 sm:gap-4 will-change-[transform,opacity]"
             style={{ opacity: 0 }}
           >
             <a
               href="#projects"
-              className="px-4 sm:px-6 py-2 sm:py-3 rounded-full bg-white text-black font-semibold text-xs sm:text-sm hover:bg-neutral-200 transition-all flex items-center gap-1.5 sm:gap-2 shadow-lg hover:shadow-xl"
+              className="px-3.5 sm:px-6 py-1.5 sm:py-3 rounded-full bg-white text-black font-semibold text-[11px] sm:text-sm hover:bg-neutral-200 transition-all flex items-center gap-1 sm:gap-2 shadow-lg hover:shadow-xl"
               id="hero-explore-work-cta"
             >
               <span>Explore Work</span>
-              <ChevronDown className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <ChevronDown className="w-3 h-3 sm:w-4 sm:h-4" />
             </a>
 
             <a
               href={PORTFOLIO_DATA.links.waveInitSolutions}
               target="_blank"
               rel="noopener noreferrer"
-              className="px-4 sm:px-6 py-2 sm:py-3 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs sm:text-sm transition-all flex items-center gap-1.5 sm:gap-2 shadow-lg group"
+              className="px-3.5 sm:px-6 py-1.5 sm:py-3 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-[11px] sm:text-sm transition-all flex items-center gap-1 sm:gap-2 shadow-lg group"
               id="hero-wave-init-cta"
             >
               <span>Wave Init Solutions</span>
-              <ArrowUpRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+              <ArrowUpRight className="w-3 h-3 sm:w-4 sm:h-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
             </a>
 
             <a
               href="#contact"
-              className="px-4 sm:px-6 py-2 sm:py-3 rounded-full bg-white/[0.08] hover:bg-white/[0.18] text-white border border-white/20 font-semibold text-xs sm:text-sm transition-all flex items-center gap-1.5 sm:gap-2 backdrop-blur-md"
+              className="px-3.5 sm:px-6 py-1.5 sm:py-3 rounded-full bg-white/[0.08] hover:bg-white/[0.18] text-white border border-white/20 font-semibold text-[11px] sm:text-sm transition-all flex items-center gap-1 sm:gap-2 backdrop-blur-md"
               id="hero-get-in-touch-cta"
             >
               <span>Contact</span>
@@ -706,12 +718,12 @@ export default function HeroScrollVideo() {
         </div>
 
         {/* Bottom Bar: Indicators and Social links */}
-        <div className="relative z-10 w-full px-5 sm:px-12 lg:px-20 pb-5 sm:pb-8 flex items-center justify-between pointer-events-none">
+        <div className="relative z-10 w-full px-4 xs:px-5 sm:px-12 lg:px-20 pb-3 xs:pb-4 sm:pb-8 flex items-center justify-between pointer-events-none">
           {/* Bottom Left: SCROLL indicator */}
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-1.5 sm:gap-3">
             <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.8)]" />
-            <span className="w-8 sm:w-12 h-[1px] bg-white/20" />
-            <span className="text-[10px] font-mono tracking-[0.25em] text-neutral-400 uppercase">
+            <span className="w-6 sm:w-12 h-[1px] bg-white/20" />
+            <span className="text-[9px] min-[380px]:text-[10px] font-mono tracking-[0.22em] sm:tracking-[0.25em] text-neutral-400 uppercase">
               SCROLL
             </span>
           </div>
@@ -730,7 +742,7 @@ export default function HeroScrollVideo() {
           </div>
 
           {/* Bottom Right: Social icons */}
-          <div className="flex items-center gap-4 pointer-events-auto">
+          <div className="flex items-center gap-3 sm:gap-4 pointer-events-auto">
             <a
               href={PORTFOLIO_DATA.links.github}
               target="_blank"
@@ -738,7 +750,7 @@ export default function HeroScrollVideo() {
               aria-label="GitHub"
               className="text-neutral-400 hover:text-white transition-colors"
             >
-              <GithubIcon className="w-4 h-4" />
+              <GithubIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </a>
             <a
               href={PORTFOLIO_DATA.links.linkedin}
@@ -747,7 +759,7 @@ export default function HeroScrollVideo() {
               aria-label="LinkedIn"
               className="text-neutral-400 hover:text-white transition-colors"
             >
-              <LinkedinIcon className="w-4 h-4" />
+              <LinkedinIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </a>
           </div>
         </div>
