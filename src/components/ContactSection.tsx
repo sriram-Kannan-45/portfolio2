@@ -7,11 +7,8 @@ import {
   Phone,
   Copy,
   Check,
-  Download,
   ArrowUpRight,
   Sparkles,
-  MessageSquare,
-  Building,
 } from "lucide-react";
 import { LinkedinIcon, GithubIcon } from "@/components/SocialIcons";
 

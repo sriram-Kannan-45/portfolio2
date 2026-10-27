@@ -2,7 +2,7 @@ export interface Project {
   id: string;
   title: string;
   subtitle: string;
-  category: "AI & Computer Vision" | "Enterprise Platform" | "Software Architecture";
+  category: "AI & Computer Vision" | "Enterprise Platform" | "Software Architecture" | "E-Commerce";
   description: string;
   longDescription: string[];
   tags: string[];
@@ -18,7 +18,7 @@ export interface ExperienceItem {
   company: string;
   period: string;
   location: string;
-  type: "Founding" | "Employment" | "Internship";
+  type: "Freelance" | "Trainee" | "Employment" | "Internship";
   summary: string;
   responsibilities: string[];
   technologies: string[];
@@ -36,63 +36,103 @@ export interface EducationItem {
 export const PORTFOLIO_DATA = {
   identity: {
     name: "Sriram K",
-    title: "AI & Software Builder | Founder, Wave Init Solutions",
+    title: "Trainee at Expleo | AI & Software Builder",
     heroHeadline: "ENGINEERING INTELLIGENT SOFTWARE & DIGITAL EXPERIENCES",
     subheadline: "AI & Data Science graduate building computer vision systems, enterprise web platforms, and intelligent workflows — turning complex algorithms into production software.",
     aboutBio:
-      "I'm Sriram K, an AI & Data Science graduate, software builder and founder of Wave Init Solutions. I work at the intersection of artificial intelligence, software development and emerging technologies, turning ideas into practical digital experiences.",
+      "I'm Sriram K, an AI & Data Science graduate and Trainee at Expleo. My background includes 2 Months of freelance software development associated with Wave Init Solutions. I work at the intersection of artificial intelligence, software development and emerging technologies, turning ideas into practical digital experiences.",
     location: "Salem, Tamil Nadu, India",
     portrait: "/sriram_portrait.jpg",
     portraitLarge: "/sriram_photo_large.jpg",
     status: {
       available: true,
-      text: "Open to AI & Software Engineering Engagements",
+      text: "Trainee at Expleo",
     },
   },
 
   links: {
+    expleoSolutions: "https://expleo.com/global/en/",
     lms: "https://www.waveinitlms.online/",
     waveInitSolutions: "https://www.waveinitsolutions.online/",
     waveInitLinkedIn: "https://www.linkedin.com/company/wave-init",
     personalLinkedIn: "https://www.linkedin.com/in/sriram-k-486bb4343/",
     linkedin: "https://www.linkedin.com/in/sriram-k-486bb4343/",
     github: "https://github.com/sriram-Kannan-45",
-    email: "sriram.waveinit@gmail.com",
+    email: "sriram.waveinti@gmail.com",
     phone: "+91 6381102874",
     phoneTel: "+916381102874",
     resumePdf: "/SRIRAMK_RESUME.pdf",
   },
 
-  founderVision: {
-    title: "FOUNDER'S VISION — SRIRAM K / Founder, Wave Init Solutions",
-    quote:
-      "Wave Init was founded with a single mission: bridging the gap between cutting-edge artificial intelligence and high-performance software engineering to build scalable, production-grade applications that solve real-world problems.",
-    companyName: "Wave Init Solutions",
-    companyTagline: "AI, Full-Stack & GenAI Development Studio",
-    companyDescription:
-      "Wave Init Solutions builds modern full-stack applications, AI-powered products, GenAI solutions, web platforms and intelligent automation using advanced AI-assisted development workflows. We engineer architectures capable of sub-second execution, enterprise-grade security, and modular scaling.",
-    logo: "/waveinit-official-logo.jpg",
-    logoHorizontal: "/waveinit-official-logo.jpg",
-    logoSvg: "/waveinit-official-logo.jpg",
-    keyPillars: [
-      {
-        title: "Sub-Second Latency Execution",
-        desc: "Optimized rendering cycles, lightweight bundles, and streaming server responses for immediate feedback.",
-      },
-      {
-        title: "High-Concurrency Data Pipelines",
-        desc: "Event-driven message queues, vector search indexes, and resilient storage built for heavy parallel loads.",
-      },
-      {
-        title: "Enterprise-Grade Security",
-        desc: "Strict role-based access control (RBAC), end-to-end token encryption, and audited data isolation.",
-      },
-      {
-        title: "Modular System Boundaries",
-        desc: "Clean microservice contracts and decoupled UI components that prevent tech debt and simplify future expansions.",
-      },
-    ],
-  },
+  professionalSpotlights: [
+    {
+      id: "expleo",
+      pill: "01 // PROFESSIONAL EXPERIENCE",
+      title: "PROFESSIONAL EXPERIENCE — EXPLEO",
+      role: "Trainee — Expleo",
+      period: "October 2026 – Present",
+      experienceType: "Trainee",
+      quote: "Developing practical technical knowledge through professional training at Expleo.",
+      companyName: "Expleo",
+      companyDescription:
+        "Currently undergoing professional training at Expleo, developing practical technical knowledge, understanding industry-standard software development practices, and gaining exposure to professional engineering and testing workflows.",
+      logo: "/expleo-logo.png",
+      brandLabel: "Expleo",
+      principlesLabel: "Professional Training Focus",
+      actions: [
+        { id: "expleo-visit-site-cta", label: "Expleo Site", href: "https://expleo.com/global/en/" },
+        { id: "expleo-experience-cta", label: "View Experience", href: "#experience" },
+        { id: "expleo-linkedin-cta", label: "LinkedIn Profile", href: "https://www.linkedin.com/in/sriram-k-486bb4343/" },
+      ],
+      keyPillars: [
+        { title: "Professional Training", desc: "Currently undergoing professional training at Expleo." },
+        { title: "Technical Knowledge", desc: "Developing practical technical knowledge through training." },
+        { title: "Development Practices", desc: "Understanding industry-standard software development practices." },
+        { title: "Engineering & Testing", desc: "Gaining exposure to professional engineering and testing workflows." },
+      ],
+    },
+    {
+      id: "founder",
+      pill: "02 // FREELANCE EXPERIENCE",
+      role: "Freelance Software Developer",
+      period: "2 Months",
+      experienceType: "Freelance",
+      title: "FREELANCE EXPERIENCE — WAVE INIT SOLUTIONS",
+      quote:
+        "Contributed to modern software development projects through freelance work associated with Wave Init Solutions, focusing on practical development, AI-assisted workflows, and building effective digital solutions.",
+      companyName: "Wave Init Solutions",
+      brandLabel: "Official Enterprise Branding",
+      principlesLabel: "Core Engineering Principles",
+      actions: [
+        { id: "founder-visit-site-cta", label: "Wave Init Solutions Site", href: "https://www.waveinitsolutions.online/" },
+        { id: "founder-launch-lms-cta", label: "Launch Wave Init LMS", href: "https://www.waveinitlms.online/" },
+        { id: "founder-linkedin-cta", label: "Company LinkedIn", href: "https://www.linkedin.com/company/wave-init" },
+      ],
+      companyDescription:
+        "Wave Init Solutions builds modern full-stack applications, AI-powered products, GenAI solutions, web platforms and intelligent automation using advanced AI-assisted development workflows. We engineer architectures capable of sub-second execution, enterprise-grade security, and modular scaling.",
+      logo: "/waveinit-official-logo.jpg",
+      logoHorizontal: "/waveinit-official-logo.jpg",
+      logoSvg: "/waveinit-official-logo.jpg",
+      keyPillars: [
+        {
+          title: "Sub-Second Latency Execution",
+          desc: "Optimized rendering cycles, lightweight bundles, and streaming server responses for immediate feedback.",
+        },
+        {
+          title: "High-Concurrency Data Pipelines",
+          desc: "Event-driven message queues, vector search indexes, and resilient storage built for heavy parallel loads.",
+        },
+        {
+          title: "Enterprise-Grade Security",
+          desc: "Strict role-based access control (RBAC), end-to-end token encryption, and audited data isolation.",
+        },
+        {
+          title: "Modular System Boundaries",
+          desc: "Clean microservice contracts and decoupled UI components that prevent tech debt and simplify future expansions.",
+        },
+      ],
+    },
+  ],
 
   skills: {
     languages: ["Python", "Java", "TypeScript", "C", "SQL"],
@@ -138,19 +178,19 @@ export const PORTFOLIO_DATA = {
     {
       id: "wave-init-solutions",
       title: "Wave Init Solutions",
-      subtitle: "Official AI & Software Development Venture",
+      subtitle: "Freelance Software Development",
       category: "Enterprise Platform",
       featured: true,
       description:
-        "Founded tech venture engineering full-stack digital products, custom AI model integration, and agentic workflows for modern enterprises.",
+        "Contributed to software development projects through freelance work associated with Wave Init Solutions, focusing on practical development, AI-assisted workflows, and effective digital solutions.",
       longDescription: [
-        "Founded and direct Wave Init Solutions as an innovation-driven software company focused on modern full-stack applications and intelligent automation.",
+        "Contributed as a Freelance Software Developer associated with Wave Init Solutions for 2 Months.",
         "Architected scalable web infrastructure utilizing modern React ecosystems, microservices, and AI-assisted engineering pipelines.",
         "Engineered reliable business workflows, context-aware AI tools, and enterprise interfaces serving real business throughput.",
       ],
       tags: ["Full-Stack", "AI Engineering", "GenAI Architecture", "Next.js", "Enterprise Systems"],
       metrics: [
-        { label: "Venture Status", value: "Active Founder" },
+        { label: "Experience Type", value: "Freelance" },
         { label: "Core Focus", value: "AI + Full-Stack" },
         { label: "Deployment", value: "Production Live" },
       ],
@@ -176,6 +216,27 @@ export const PORTFOLIO_DATA = {
         { label: "URL", value: "waveinitlms.online" },
       ],
       liveUrl: "https://www.waveinitlms.online/",
+    },
+    {
+      id: "achu-boutique",
+      title: "Achu Boutique",
+      subtitle: "Designer Ethnic Wear Store",
+      category: "E-Commerce",
+      featured: true,
+      description:
+        "Online boutique showcasing sarees, designer kurtis, anarkalis, and festive ethnic wear, with collection browsing and WhatsApp enquiries.",
+      longDescription: [
+        "Product collections showcasing handcrafted sarees, designer kurtis, and festive ethnic wear.",
+        "Collection search, new-arrival browsing, and a shopping bag interface for exploring boutique products.",
+        "WhatsApp enquiries for connecting with the boutique about its collections.",
+      ],
+      tags: ["Next.js", "E-Commerce", "Product Catalog", "WhatsApp Enquiries"],
+      metrics: [
+        { label: "Project Type", value: "Boutique Store" },
+        { label: "Core Feature", value: "Product Collections" },
+        { label: "Website", value: "achuboutique.store" },
+      ],
+      liveUrl: "https://achuboutique.store/",
     },
     {
       id: "bone-fracture-detection",
@@ -223,36 +284,29 @@ export const PORTFOLIO_DATA = {
 
   experience: [
     {
-      company: "Wave Init Solutions",
-      role: "Founder & Lead Builder",
-      period: "Sep 2024 – Present",
-      location: "Salem, Tamil Nadu, India",
-      type: "Founding",
+      company: "Expleo",
+      role: "Trainee",
+      period: "October 2026 – Present",
+      location: "India",
+      type: "Trainee",
       summary:
-        "Founded technology studio delivering AI-powered software, scalable full-stack web platforms, and automated developer systems.",
-      responsibilities: [
-        "Directed product architecture and technological strategy across flagship projects including Wave Init LMS and client digital platforms.",
-        "Designed and implemented high-concurrency cloud architectures, modern React interfaces, and intelligent automation systems.",
-        "Built company presence, client relationships, and end-to-end technical delivery standards.",
-      ],
-      technologies: ["React", "Next.js", "TypeScript", "Python", "AI Integration", "Cloud Architecture"],
-      verifiedNote: "Registered Founder & Executive Lead",
+        "Currently undergoing professional training at Expleo, developing practical technical knowledge, understanding industry-standard software development practices, and gaining exposure to professional engineering and testing workflows.",
+      responsibilities: [],
+      technologies: [],
     },
     {
-      company: "Expleo Solutions",
-      role: "Quality Assurance Engineer",
-      period: "Current Role",
-      location: "India",
-      type: "Employment",
+      company: "Wave Init Solutions",
+      role: "Freelance Software Developer",
+      period: "2 Months",
+      location: "Salem, Tamil Nadu, India",
+      type: "Freelance",
       summary:
-        "Engineering rigorous quality verification, automated regression pipelines, and software reliability suites across enterprise applications.",
+        "Contributed to modern software development projects through freelance work associated with Wave Init Solutions, focusing on practical development, AI-assisted workflows, and building effective digital solutions.",
       responsibilities: [
-        "Executing functional verification, defect tracking, and systematic validation of enterprise software modules.",
-        "Designing structured test methodologies to ensure system stability, compliance, and user safety.",
-        "Collaborating across engineering teams to streamline delivery cycles with a quality-first engineering mindset.",
+        "Contributed to practical software development projects associated with Wave Init Solutions.",
+        "Used AI-assisted development workflows to support effective digital solutions.",
       ],
-      technologies: ["Automation Testing", "Selenium WebDriver", "TestNG", "CI/CD", "ISTQB Fundamentals"],
-      verifiedNote: "Current Employment (QA Discipline)",
+      technologies: ["React", "Next.js", "TypeScript", "Python", "AI Integration", "Cloud Architecture"],
     },
     {
       company: "Evointoo",
@@ -363,7 +417,7 @@ export const PORTFOLIO_DATA = {
       timeRange: [7.8, 10.0],
       scrollRange: [0.78, 1.0],
       title: "Adjusting Tie",
-      desc: "Precision and command — Sriram K, Founder of Wave Init Solutions.",
+      desc: "Precision and command — Sriram K, Trainee at Expleo.",
       indicator: "05 / 05",
     },
   ],

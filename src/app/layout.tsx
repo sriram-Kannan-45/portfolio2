@@ -16,9 +16,9 @@ const jetbrainsMono = JetBrains_Mono({
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://www.waveinitsolutions.online"),
-  title: "Sriram K | AI & Software Builder | Founder, Wave Init Solutions",
+  title: "Sriram K | Trainee at Expleo | AI & Software Builder",
   description:
-    "Production-grade personal portfolio of Sriram K — AI & Data Science graduate, software builder, and founder of Wave Init Solutions. Specializing in computer vision, deep learning, enterprise platforms, and intelligent automation.",
+    "Production-grade personal portfolio of Sriram K — AI & Data Science graduate, Trainee at Expleo, with prior freelance software development experience associated with Wave Init Solutions. Specializing in computer vision, deep learning, enterprise platforms, and intelligent automation.",
   keywords: [
     "Sriram K",
     "Wave Init Solutions",
@@ -36,7 +36,7 @@ export const metadata: Metadata = {
     type: "website",
     locale: "en_US",
     url: "https://www.waveinitsolutions.online",
-    title: "Sriram K — AI & Software Builder | Founder, Wave Init Solutions",
+    title: "Sriram K — Trainee at Expleo | AI & Software Builder",
     description:
       "Transforming artificial intelligence, deep learning, and robust software architecture into practical, scalable digital experiences.",
     siteName: "Sriram K Portfolio",
@@ -45,13 +45,13 @@ export const metadata: Metadata = {
         url: "/sriram_portrait.jpg",
         width: 1024,
         height: 1024,
-        alt: "Sriram K - Founder of Wave Init Solutions",
+        alt: "Sriram K - Trainee at Expleo",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Sriram K — AI & Software Builder | Founder, Wave Init Solutions",
+    title: "Sriram K — Trainee at Expleo | AI & Software Builder",
     description:
       "Transforming artificial intelligence, deep learning, and robust software architecture into practical, scalable digital experiences.",
     images: ["/sriram_portrait.jpg"],
@@ -79,8 +79,12 @@ export default function RootLayout({
     <html
       lang="en"
       className={`${inter.variable} ${jetbrainsMono.variable} dark bg-[#050505] text-[#f3f4f6]`}
+      suppressHydrationWarning
     >
-      <body className="min-h-screen bg-[#050505] text-[#f3f4f6] font-sans antialiased selection:bg-[#16a34a]/30 selection:text-white relative">
+      <body
+        className="min-h-screen bg-[#050505] text-[#f3f4f6] font-sans antialiased selection:bg-[#16a34a]/30 selection:text-white relative"
+        suppressHydrationWarning
+      >
         {children}
       </body>
     </html>

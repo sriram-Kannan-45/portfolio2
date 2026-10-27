@@ -5,7 +5,6 @@ import Image from "next/image";
 import { PORTFOLIO_DATA } from "@/data/portfolioData";
 import {
   ArrowUpRight,
-  ExternalLink,
   ShieldCheck,
   Zap,
   Database,
@@ -14,12 +13,19 @@ import {
 } from "lucide-react";
 import { LinkedinIcon } from "@/components/SocialIcons";
 
-export default function FounderSection() {
-  const { founderVision, links } = PORTFOLIO_DATA;
+type Spotlight = (typeof PORTFOLIO_DATA.professionalSpotlights)[number];
+
+export default function ProfessionalSpotlights() {
+  return <>{PORTFOLIO_DATA.professionalSpotlights.map((spotlight) => (
+    <CompanySpotlight key={spotlight.id} spotlight={spotlight} />
+  ))}</>;
+}
+
+function CompanySpotlight({ spotlight }: { spotlight: Spotlight }) {
   const [rotationAngle, setRotationAngle] = useState(0);
   const lastTouchTimeRef = useRef(0);
 
-  const handleEmblemRotate = (e: React.SyntheticEvent) => {
+  const handleEmblemRotate = () => {
     const now = Date.now();
     if (now - lastTouchTimeRef.current < 300) {
       return;
@@ -32,9 +38,9 @@ export default function FounderSection() {
 
   return (
     <section
-      id="founder"
+      id={spotlight.id}
       className="relative z-10 py-16 sm:py-28 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto"
-      aria-label="Founder's Vision — Sriram K"
+      aria-label={spotlight.title}
     >
       <div className="glass-panel p-5 sm:p-8 md:p-14 rounded-2xl sm:rounded-3xl border border-white/10 relative overflow-hidden">
         {/* Ambient Emerald Backdrop Glow */}
@@ -43,17 +49,17 @@ export default function FounderSection() {
         {/* Section Pill */}
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-950/50 border border-emerald-500/20 text-xs font-mono text-emerald-400 mb-4 sm:mb-6">
           <Sparkles className="w-3.5 h-3.5" />
-          <span>VENTURE SPOTLIGHT // LEADERSHIP</span>
+          <span>{spotlight.pill}</span>
         </div>
 
-        {/* Founder Headline */}
+        {/* Experience Headline */}
         <h2 className="text-2xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight uppercase mb-3 sm:mb-4 leading-tight break-words">
-          {founderVision.title}
+          {spotlight.title}
         </h2>
 
         {/* Quote */}
         <p className="text-sm sm:text-xl font-light text-neutral-200 leading-relaxed max-w-3xl mb-8 sm:mb-10 italic">
-          &ldquo;{founderVision.quote}&rdquo;
+          &ldquo;{spotlight.quote}&rdquo;
         </p>
 
         {/* Brand Card & Company Narrative */}
@@ -65,7 +71,7 @@ export default function FounderSection() {
               onClick={handleEmblemRotate}
               onTouchStart={handleEmblemRotate}
               title="Touch or click to rotate"
-              aria-label="Rotate Wave Init Emblem"
+              aria-label={`Rotate ${spotlight.companyName} Emblem`}
               className="relative w-28 h-28 xs:w-36 xs:h-36 sm:w-40 sm:h-40 mb-3 sm:mb-4 rounded-full p-1 bg-gradient-to-tr from-emerald-500/40 via-white/20 to-emerald-400/40 shadow-2xl flex items-center justify-center cursor-pointer hover:scale-105 active:scale-95 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-emerald-400/50 group/emblem"
             >
               <div
@@ -73,23 +79,25 @@ export default function FounderSection() {
                 style={{ transform: `rotate(${rotationAngle}deg)` }}
               >
                 <Image
-                  src={founderVision.logo}
-                  alt="Wave Init Solutions Official Emblem"
+                  src={spotlight.logo}
+                  alt={`${spotlight.companyName} logo`}
                   width={160}
                   height={160}
                   className="object-contain w-full h-full pointer-events-none select-none"
-                  style={{ width: "auto", height: "auto" }}
+                  style={spotlight.id === "expleo"
+                    ? { width: "84%", height: "100%", objectFit: "contain" }
+                    : { width: "auto", height: "auto" }}
                   priority
                 />
               </div>
             </button>
             <span className="text-xs font-mono text-neutral-300 font-semibold tracking-wide">
-              Official Enterprise Branding
+              {spotlight.brandLabel}
             </span>
             <div className="mt-2.5 sm:mt-3 flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-950/50 border border-emerald-500/20">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
               <span className="text-[10px] sm:text-[11px] font-mono text-emerald-400 font-medium">
-                Operating Tech Venture
+                {`${spotlight.experienceType} // ${spotlight.period}`}
               </span>
             </div>
           </div>
@@ -97,57 +105,57 @@ export default function FounderSection() {
           {/* Description & Mission */}
           <div className="lg:col-span-8 flex flex-col justify-center">
             <h3 className="text-lg sm:text-xl font-bold text-white mb-2">
-              {founderVision.companyTagline}
+              {spotlight.role}
             </h3>
             <p className="text-xs sm:text-sm text-neutral-300 leading-relaxed mb-6 font-normal">
-              {founderVision.companyDescription}
+              {spotlight.companyDescription}
             </p>
 
             {/* Quick Actions */}
             <div className="flex flex-col sm:flex-row flex-wrap gap-2.5 sm:gap-3">
               <a
-                href={links.waveInitSolutions}
-                target="_blank"
+                href={spotlight.actions[0].href}
+                target={spotlight.actions[0].href.startsWith("#") ? undefined : "_blank"}
                 rel="noopener noreferrer"
                 className="px-4 py-2.5 sm:py-2 rounded-xl bg-white text-black font-semibold text-xs hover:bg-neutral-200 transition-all flex items-center justify-center gap-2 shadow-lg group w-full sm:w-auto"
-                id="founder-visit-site-cta"
+                id={spotlight.actions[0].id}
               >
-                <span>Wave Init Solutions Site</span>
+                <span>{spotlight.actions[0].label}</span>
                 <ArrowUpRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
               </a>
 
               <a
-                href={links.lms}
-                target="_blank"
+                href={spotlight.actions[1].href}
+                target={spotlight.actions[1].href.startsWith("#") ? undefined : "_blank"}
                 rel="noopener noreferrer"
                 className="px-4 py-2.5 sm:py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition-all flex items-center justify-center gap-2 shadow-lg group w-full sm:w-auto"
-                id="founder-launch-lms-cta"
+                id={spotlight.actions[1].id}
               >
-                <span>Launch Wave Init LMS</span>
+                <span>{spotlight.actions[1].label}</span>
                 <ArrowUpRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
               </a>
 
               <a
-                href={links.waveInitLinkedIn}
+                href={spotlight.actions[2].href}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="px-4 py-2.5 sm:py-2 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] text-neutral-300 hover:text-white border border-white/10 font-mono text-xs transition-all flex items-center justify-center gap-2 w-full sm:w-auto"
-                id="founder-linkedin-cta"
+                id={spotlight.actions[2].id}
               >
                 <LinkedinIcon className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Company LinkedIn</span>
+                <span>{spotlight.actions[2].label}</span>
               </a>
             </div>
           </div>
         </div>
 
-        {/* 4 Architectural Pillars from the official company source */}
+        {/* Existing four-card layout for company principles or training focus */}
         <div>
           <h4 className="text-xs font-mono uppercase tracking-widest text-neutral-400 mb-4 sm:mb-6">
-            Core Engineering Principles
+            {spotlight.principlesLabel}
           </h4>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-            {founderVision.keyPillars.map((pillar, idx) => {
+            {spotlight.keyPillars.map((pillar, idx) => {
               const Icon = pillarIcons[idx % pillarIcons.length];
               return (
                 <div

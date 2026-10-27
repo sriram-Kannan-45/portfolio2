@@ -1,14 +1,32 @@
 "use client";
 
-import React, { useEffect, useRef, useState, useCallback } from "react";
+import React, { useEffect, useRef, useState, useCallback, useSyncExternalStore } from "react";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { PORTFOLIO_DATA } from "@/data/portfolioData";
 import {
   ChevronDown,
   ArrowUpRight,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
 import { GithubIcon, LinkedinIcon } from "@/components/SocialIcons";
+
+function subscribeReducedMotion(callback: () => void) {
+  if (typeof window === "undefined") return () => {};
+  const query = window.matchMedia("(prefers-reduced-motion: reduce)");
+  query.addEventListener("change", callback);
+  return () => query.removeEventListener("change", callback);
+}
+
+function getReducedMotionSnapshot() {
+  if (typeof window === "undefined") return false;
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+function getReducedMotionServerSnapshot() {
+  return false;
+}
 
 // Register ScrollTrigger safely in browser
 if (typeof window !== "undefined") {
@@ -23,9 +41,8 @@ const DESKTOP_HEIGHT = 720;
 const MOBILE_WIDTH = 1280;
 const MOBILE_HEIGHT = 720;
 
-// Ratio of total scroll dedicated to video playback before holding on the final frame
-// Lower = faster video, Higher = slower video. Target: medium speed
-const VIDEO_PLAYBACK_RATIO = 0.85;
+// Leave time to read the completed introduction before the pinned scene releases.
+const VIDEO_PLAYBACK_RATIO = 0.84;
 
 export default function HeroScrollVideo() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -41,8 +58,16 @@ export default function HeroScrollVideo() {
   const nameRef = useRef<HTMLSpanElement>(null);
   const taglineRef = useRef<HTMLParagraphElement>(null);
   const ctasRef = useRef<HTMLDivElement>(null);
+  const thankYouRef = useRef<HTMLDivElement>(null);
 
-  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+  // (direction-aware tracking removed — animation is now purely progress-based)
+
+  const prefersReducedMotion = useSyncExternalStore(
+    subscribeReducedMotion,
+    getReducedMotionSnapshot,
+    getReducedMotionServerSnapshot
+  );
+  const [isPlaying, setIsPlaying] = useState<boolean>(true);
 
   // Performance tracking refs (avoiding React re-renders)
   const isMobileRef = useRef<boolean>(false);
@@ -50,7 +75,7 @@ export default function HeroScrollVideo() {
   const requestedFramesRef = useRef<Set<number>>(new Set());
   const targetFrameRef = useRef<number>(0);
   const lastDrawnIndexRef = useRef<number>(-1);
-  const rafPendingRef = useRef<boolean>(false);
+  const paintRafRef = useRef<number | null>(null);
   const hudRafPendingRef = useRef<boolean>(false);
   const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
   const lastPreloadedFrameRef = useRef<number>(-999);
@@ -74,10 +99,10 @@ export default function HeroScrollVideo() {
     let img = loadedFramesRef.current.get(indexToPaint);
     let paintedIdx = indexToPaint;
 
-    // Fast local neighborhood lookup (checks closest frames first within +/- 25 range)
+    // Fast local neighborhood lookup (checks closest frames first within +/- 6 range)
     if (!img || !img.complete || img.naturalWidth === 0) {
       img = undefined;
-      for (let offset = 1; offset <= 25; offset++) {
+      for (let offset = 1; offset <= 6; offset++) {
         const lower = indexToPaint - offset;
         if (lower >= 0) {
           const candidate = loadedFramesRef.current.get(lower);
@@ -133,6 +158,7 @@ export default function HeroScrollVideo() {
     // Exact blit to canvas internal dimensions
     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
     lastDrawnIndexRef.current = paintedIdx;
+    canvas.dataset.frame = String(paintedIdx);
 
     // Hide fallback poster once canvas has painted successfully
     if (posterRef.current && posterRef.current.style.opacity !== "0") {
@@ -140,10 +166,20 @@ export default function HeroScrollVideo() {
     }
   }, []);
 
+  // Coalesce scroll and image-load updates; always paint the latest scroll target.
+  // A late request must never rewind the canvas to the frame it originally requested.
+  const scheduleFramePaint = useCallback(() => {
+    if (paintRafRef.current !== null) return;
+    paintRafRef.current = requestAnimationFrame(() => {
+      paintRafRef.current = null;
+      paintFrameToCanvas(targetFrameRef.current);
+    });
+  }, [paintFrameToCanvas]);
+
   // Memory management: Prune distant frames on mobile to prevent memory pressure
   const pruneMobileFrameCache = useCallback((currentCenter: number) => {
-    if (!isMobileRef.current || loadedFramesRef.current.size < 70) return;
-    const KEEP_RADIUS = 30;
+    if (!isMobileRef.current || loadedFramesRef.current.size < 160) return;
+    const KEEP_RADIUS = 80;
     for (const key of Array.from(loadedFramesRef.current.keys())) {
       // Always keep frame 0 and last frame
       if (key === 0 || key === TOTAL_FRAMES - 1) continue;
@@ -165,11 +201,8 @@ export default function HeroScrollVideo() {
 
       const commitFrame = () => {
         loadedFramesRef.current.set(index, img);
-        if (onLoaded) {
-          onLoaded();
-        } else if (Math.abs(targetFrameRef.current - index) <= 2) {
-          paintFrameToCanvas(targetFrameRef.current);
-        }
+        onLoaded?.();
+        scheduleFramePaint();
       };
 
       // CRITICAL: Attach handlers BEFORE setting src so cached loads never fire before handlers are attached
@@ -192,7 +225,7 @@ export default function HeroScrollVideo() {
         commitFrame();
       }
     },
-    [getFrameUrl, paintFrameToCanvas]
+    [getFrameUrl, scheduleFramePaint]
   );
 
   // Progressive directional preloader (prioritizes current frame and immediate neighborhood)
@@ -202,7 +235,7 @@ export default function HeroScrollVideo() {
       const WINDOW_BEHIND = mobileMode ? 6 : 10;
 
       // 1. Target frame priority
-      requestFrame(center, mobileMode, () => paintFrameToCanvas(center));
+      requestFrame(center, mobileMode);
 
       // 2. Directional window
       if (direction >= 0) {
@@ -228,7 +261,7 @@ export default function HeroScrollVideo() {
       // 3. Prune old frames on mobile
       pruneMobileFrameCache(center);
     },
-    [requestFrame, paintFrameToCanvas, pruneMobileFrameCache]
+    [requestFrame, pruneMobileFrameCache]
   );
 
   // Sync canvas resolution to exact frame dimensions imperatively
@@ -263,11 +296,6 @@ export default function HeroScrollVideo() {
 
   // Initial setup & Frame 0 immediate load
   useEffect(() => {
-    const motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
-    setPrefersReducedMotion(motionQuery.matches);
-    const handleMotion = (e: MediaQueryListEvent) => setPrefersReducedMotion(e.matches);
-    motionQuery.addEventListener("change", handleMotion);
-
     const mobileCheck =
       window.innerWidth < 768 ||
       (("ontouchstart" in window || navigator.maxTouchPoints > 0) &&
@@ -279,53 +307,48 @@ export default function HeroScrollVideo() {
     window.addEventListener("orientationchange", handleResize, { passive: true });
 
     // Instantly load and render Frame 0 (or last frame if reduced motion)
-    const initialFrame = motionQuery.matches ? TOTAL_FRAMES - 1 : 0;
+    const initialFrame = prefersReducedMotion ? TOTAL_FRAMES - 1 : 0;
     targetFrameRef.current = initialFrame;
 
-    requestFrame(initialFrame, mobileCheck, () => {
-      paintFrameToCanvas(initialFrame);
-      if (!motionQuery.matches) {
-        preloadNeighborhood(initialFrame, 1, mobileCheck);
+    // Immediately preload opening sequence (frames 0 to 45) concurrently
+    if (!prefersReducedMotion) {
+      for (let i = 0; i <= Math.min(45, TOTAL_FRAMES - 1); i++) {
+        requestFrame(i, mobileCheck);
       }
-    });
-
-    // Progressive background preloader during browser idle slices
-    let idleHandle: number | ReturnType<typeof setTimeout>;
-    let currentBatchIndex = 0;
-    const scheduleNextIdleBatch = () => {
-      const BATCH_SIZE = mobileCheck ? 8 : 16;
-      const end = Math.min(currentBatchIndex + BATCH_SIZE, TOTAL_FRAMES);
-      for (let i = currentBatchIndex; i < end; i++) {
-        requestFrame(i, isMobileRef.current);
-      }
-      currentBatchIndex = end;
-
-      if (currentBatchIndex < TOTAL_FRAMES) {
-        if (typeof requestIdleCallback !== "undefined") {
-          idleHandle = requestIdleCallback(scheduleNextIdleBatch, { timeout: 1200 });
-        } else {
-          idleHandle = setTimeout(scheduleNextIdleBatch, 100);
-        }
-      }
-    };
-
-    if (typeof requestIdleCallback !== "undefined") {
-      idleHandle = requestIdleCallback(scheduleNextIdleBatch, { timeout: 1500 });
     } else {
-      idleHandle = setTimeout(scheduleNextIdleBatch, 800);
+      requestFrame(initialFrame, mobileCheck);
+    }
+
+    // Progressive background preloader: batches remaining frames rapidly (40ms interval)
+    let preloaderInterval: ReturnType<typeof setInterval> | null = null;
+    let nextBatchStart = 46;
+
+    if (!prefersReducedMotion) {
+      preloaderInterval = setInterval(() => {
+        if (nextBatchStart >= TOTAL_FRAMES) {
+          if (preloaderInterval) clearInterval(preloaderInterval);
+          return;
+        }
+        const batchEnd = Math.min(nextBatchStart + 24, TOTAL_FRAMES);
+        for (let i = nextBatchStart; i < batchEnd; i++) {
+          requestFrame(i, isMobileRef.current);
+        }
+        nextBatchStart = batchEnd;
+      }, 40);
     }
 
     return () => {
-      motionQuery.removeEventListener("change", handleMotion);
       window.removeEventListener("resize", handleResize);
       window.removeEventListener("orientationchange", handleResize);
-      if (typeof requestIdleCallback !== "undefined") {
-        cancelIdleCallback(idleHandle as number);
-      } else {
-        clearTimeout(idleHandle as ReturnType<typeof setTimeout>);
+      if (preloaderInterval) {
+        clearInterval(preloaderInterval);
+      }
+      if (paintRafRef.current !== null) {
+        cancelAnimationFrame(paintRafRef.current);
+        paintRafRef.current = null;
       }
     };
-  }, [handleResize, preloadNeighborhood, requestFrame, syncCanvasDimensions, paintFrameToCanvas]);
+  }, [handleResize, requestFrame, syncCanvasDimensions, prefersReducedMotion]);
 
   // Update state upon video scroll completion directly with dirty-checking
   const updateHUD = useCallback((progress: number) => {
@@ -336,7 +359,12 @@ export default function HeroScrollVideo() {
     requestAnimationFrame(() => {
       hudRafPendingRef.current = false;
       const p = pendingProgressRef.current;
-      const isVideoDone = p >= VIDEO_PLAYBACK_RATIO;
+      const isVideoDone = p >= 0.92;
+
+      // Ensure hero container dataset reflects video completion status
+      if (containerRef.current) {
+        containerRef.current.dataset.videoComplete = isVideoDone ? "true" : "false";
+      }
 
       // Notify Navbar & ThreeCanvas when video completes
       if (heroRevealedRef.current !== isVideoDone) {
@@ -350,12 +378,17 @@ export default function HeroScrollVideo() {
     });
   }, []);
 
-  // GSAP ScrollTrigger Setup with Smooth Sequential Scroll-Driven Reveals
+  // GSAP ScrollTrigger Setup with Pure Progress-Based Animation
   useEffect(() => {
     if (!containerRef.current || !pinSectionRef.current) return;
+    let disposed = false;
 
     const ctx = gsap.context(() => {
       if (prefersReducedMotion) {
+        if (containerRef.current) {
+          containerRef.current.dataset.videoComplete = "true";
+          containerRef.current.dataset.scrollEnd = "0";
+        }
         gsap.set(
           [
             eyebrowRef.current,
@@ -370,50 +403,15 @@ export default function HeroScrollVideo() {
             filter: "none",
           }
         );
+        gsap.set(thankYouRef.current, { opacity: 0 });
+        targetFrameRef.current = TOTAL_FRAMES - 1;
+        requestFrame(TOTAL_FRAMES - 1, isMobileRef.current);
+        scheduleFramePaint();
+        updateHUD(1);
         return;
       }
 
-      // Master timeline linked directly to ScrollTrigger
-      const tl = gsap.timeline({
-        scrollTrigger: {
-          trigger: containerRef.current,
-          start: "top top",
-          end: () => `+=${Math.round(window.innerHeight * (isMobileRef.current ? 4.1 : 4.8))}`,
-          pin: pinSectionRef.current,
-          pinSpacing: true,
-          anticipatePin: 1,
-          scrub: true,
-          onUpdate: (self) => {
-            const currentProgress = self.progress;
-            const videoProgress = Math.min(1, Math.max(0, currentProgress / VIDEO_PLAYBACK_RATIO));
-            const targetIndex = Math.min(
-              TOTAL_FRAMES - 1,
-              Math.max(0, Math.round(videoProgress * (TOTAL_FRAMES - 1)))
-            );
-
-            targetFrameRef.current = targetIndex;
-
-            // Paint frame directly when index changes
-            if (targetIndex !== lastDrawnIndexRef.current) {
-              paintFrameToCanvas(targetIndex);
-
-              // Directional preloading only when frame changes
-              const dist = Math.abs(targetIndex - lastPreloadedFrameRef.current);
-              if (dist >= 2) {
-                const dir = targetIndex >= lastPreloadedFrameRef.current ? 1 : -1;
-                lastPreloadedFrameRef.current = targetIndex;
-                preloadNeighborhood(targetIndex, dir, isMobileRef.current);
-              }
-            }
-
-            // Video completion check & Hero reveal
-            updateHUD(currentProgress);
-          },
-        },
-      });
-
-      // Initial states for sequential reveal:
-      // Mobile uses tighter offsets and subtle blur to remain entirely below the chin and keep 60fps silky smooth
+      // Typography animation offsets — consistent mobile/desktop
       const isMobile = typeof window !== "undefined" && window.innerWidth < 640;
       const eyebrowY = isMobile ? 10 : 20;
       const lineOneY = isMobile ? 14 : 28;
@@ -422,128 +420,241 @@ export default function HeroScrollVideo() {
       const ctasY = isMobile ? 10 : 18;
       const blurAmount = isMobile ? 4 : 10;
 
-      gsap.set(eyebrowRef.current, {
-        opacity: 0,
-        y: eyebrowY,
-        filter: `blur(${blurAmount}px)`,
-      });
+      const easeOut = (t: number) => 1 - Math.pow(1 - t, 2);
 
-      gsap.set(lineOneRef.current, {
-        opacity: 0,
-        y: lineOneY,
-        filter: `blur(${blurAmount}px)`,
-      });
+      const resetToSleepMode = () => {
+        gsap.set(
+          [
+            eyebrowRef.current,
+            lineOneRef.current,
+            nameRef.current,
+            taglineRef.current,
+            ctasRef.current,
+            thankYouRef.current,
+          ],
+          {
+            opacity: 0,
+            filter: `blur(${blurAmount}px)`,
+            overwrite: "auto",
+          }
+        );
 
-      gsap.set(nameRef.current, {
-        opacity: 0,
-        y: nameY,
-        scale: isMobile ? 0.97 : 0.95,
-        filter: `blur(${blurAmount}px)`,
-      });
+        gsap.set(eyebrowRef.current, { y: eyebrowY });
+        gsap.set(lineOneRef.current, { y: lineOneY });
+        gsap.set(nameRef.current, { y: nameY, scale: isMobile ? 0.97 : 0.95 });
+        gsap.set(taglineRef.current, { y: taglineY });
+        gsap.set(ctasRef.current, { y: ctasY });
+        gsap.set(thankYouRef.current, { y: 0 });
 
-      gsap.set(taglineRef.current, {
-        opacity: 0,
-        y: taglineY,
-        filter: `blur(${blurAmount}px)`,
-      });
+        gsap.set(scrollIndicatorRef.current, {
+          opacity: 1,
+          y: 0,
+          overwrite: "auto",
+        });
+      };
 
-      gsap.set(ctasRef.current, {
-        opacity: 0,
-        y: ctasY,
-      });
+      /**
+       * PURE PROGRESS-BASED TEXT ANIMATION
+       * ─────────────────────────────────────────────────────────────────────────
+       * The text state is ENTIRELY determined by the current scroll progress (0–1).
+       * Direction is NEVER used to decide what to show — only progress matters.
+       * This eliminates all direction-triggered "THANK YOU" flashes.
+       *
+       * THANK YOU is completely removed as a scroll-triggered element.
+       * It only appears at progress ≥ 0.97 as a "completion" flourish that naturally
+       * fades in when the user has fully scrolled through the intro. On reverse scroll
+       * it disappears at progress < 0.90 following the same progress curve.
+       *
+       * Scene timeline (progress 0 → 1):
+       *   0.00 → 0.02  Sleep — all text hidden, scroll indicator visible
+       *   0.02 → 0.05  Scroll indicator fades out
+       *   0.06 → 0.22  Eyebrow "AI & SOFTWARE BUILDER" fades in
+       *   0.22 → 0.40  "THIS IS" fades in
+       *   0.40 → 0.60  "SRIRAM K" fades in (golden italic)
+       *   0.60 → 0.76  Tagline fades in
+       *   0.76 → 0.90  CTAs fade in
+       *   0.90 → 1.00  Intro text holds — all visible; hero "ready" state
+       */
+      const renderTextForProgress = (progress: number) => {
+        // ── Sleep zone ──────────────────────────────────────────────────────
+        if (progress <= 0.02) {
+          resetToSleepMode();
+          return;
+        }
 
-      gsap.set(scrollIndicatorRef.current, {
-        opacity: 1,
-        y: 0,
-      });
+        // ── Scroll indicator fades out ───────────────────────────────────────
+        const indicatorT = Math.min(1, Math.max(0, (progress - 0.02) / (0.05 - 0.02)));
+        gsap.set(scrollIndicatorRef.current, {
+          opacity: 1 - indicatorT,
+          y: indicatorT * 12,
+        });
 
-      // 0.00 -> 0.06: Initial scroll indicator fades out immediately upon scrolling
-      tl.to(
-        scrollIndicatorRef.current,
-        {
+        // Always keep THANK YOU hidden — it's not a scroll-driven text element
+        gsap.set(thankYouRef.current, {
           opacity: 0,
-          y: 12,
-          duration: 0.06,
-          ease: "power2.out",
-        },
-        0.00
-      );
-
-      // 0.06 -> 0.20: Step 1 - Eyebrow smoothly emerges
-      tl.to(
-        eyebrowRef.current,
-        {
-          opacity: 1,
           y: 0,
           filter: "blur(0px)",
-          duration: 0.14,
-          ease: "power2.out",
-        },
-        0.06
-      );
+          overwrite: "auto",
+        });
 
-      // 0.20 -> 0.38: Step 2 - "THIS IS" reveals in white serif
-      tl.to(
-        lineOneRef.current,
-        {
-          opacity: 1,
-          y: 0,
-          filter: "blur(0px)",
-          duration: 0.18,
-          ease: "power2.out",
-        },
-        0.20
-      );
+        // ── Step 1: Eyebrow ─────────────────────────────────────────────────
+        const eyebrowT = Math.min(1, Math.max(0, (progress - 0.06) / (0.22 - 0.06)));
+        const eEase = easeOut(eyebrowT);
+        gsap.set(eyebrowRef.current, {
+          opacity: eEase,
+          y: (1 - eEase) * eyebrowY,
+          filter: `blur(${(1 - eEase) * blurAmount}px)`,
+        });
 
-      // 0.38 -> 0.58: Step 3 - "SRIRAM K" reveals in golden italic serif
-      tl.to(
-        nameRef.current,
-        {
-          opacity: 1,
-          y: 0,
-          scale: 1,
-          filter: "blur(0px)",
-          duration: 0.20,
-          ease: "power2.out",
-        },
-        0.38
-      );
+        // ── Step 2: "THIS IS" ────────────────────────────────────────────────
+        const lineOneT = Math.min(1, Math.max(0, (progress - 0.22) / (0.40 - 0.22)));
+        const lEase = easeOut(lineOneT);
+        gsap.set(lineOneRef.current, {
+          opacity: lEase,
+          y: (1 - lEase) * lineOneY,
+          filter: `blur(${(1 - lEase) * blurAmount}px)`,
+        });
 
-      // 0.58 -> 0.74: Step 4 - Tagline unveils below the headline
-      tl.to(
-        taglineRef.current,
-        {
-          opacity: 1,
-          y: 0,
-          filter: "blur(0px)",
-          duration: 0.16,
-          ease: "power2.out",
-        },
-        0.58
-      );
+        // ── Step 3: "SRIRAM K" ───────────────────────────────────────────────
+        const nameT = Math.min(1, Math.max(0, (progress - 0.40) / (0.60 - 0.40)));
+        const nEase = easeOut(nameT);
+        gsap.set(nameRef.current, {
+          opacity: nEase,
+          y: (1 - nEase) * nameY,
+          scale: (isMobile ? 0.97 : 0.95) + (isMobile ? 0.03 : 0.05) * nEase,
+          filter: `blur(${(1 - nEase) * blurAmount}px)`,
+        });
 
-      // 0.74 -> 0.88: Step 5 - Action CTAs appear cleanly
-      tl.to(
-        ctasRef.current,
-        {
-          opacity: 1,
-          y: 0,
-          duration: 0.14,
-          ease: "power2.out",
-        },
-        0.74
-      );
+        // ── Step 4: Tagline ──────────────────────────────────────────────────
+        const taglineT = Math.min(1, Math.max(0, (progress - 0.60) / (0.76 - 0.60)));
+        const tEase = easeOut(taglineT);
+        gsap.set(taglineRef.current, {
+          opacity: tEase,
+          y: (1 - tEase) * taglineY,
+          filter: `blur(${(1 - tEase) * blurAmount}px)`,
+        });
 
-      // 0.88 -> 1.00: Hold fully revealed state until end of pin
-      tl.to({}, { duration: 0.12 }, 0.88);
-    }, containerRef);
+        // ── Step 5: CTAs ─────────────────────────────────────────────────────
+        const ctasT = Math.min(1, Math.max(0, (progress - 0.76) / (0.90 - 0.76)));
+        const cEase = easeOut(ctasT);
+        gsap.set(ctasRef.current, {
+          opacity: cEase,
+          y: (1 - cEase) * ctasY,
+          filter: `blur(${(1 - cEase) * blurAmount}px)`,
+        });
+      };
+
+      const playhead = { progress: 0 };
+      const renderIntro = () => {
+        if (disposed || !containerRef.current) return;
+        const currentProgress = playhead.progress;
+
+        // Calculate video frame from scroll progress
+        const videoProgress = Math.min(1, Math.max(0, currentProgress / VIDEO_PLAYBACK_RATIO));
+        const targetIndex = Math.min(
+          TOTAL_FRAMES - 1,
+          Math.max(0, Math.round(videoProgress * (TOTAL_FRAMES - 1)))
+        );
+
+        targetFrameRef.current = targetIndex;
+
+        // GSAP's animation ticker keeps the canvas and text on the same eased progress.
+        if (targetIndex !== lastDrawnIndexRef.current) {
+          paintFrameToCanvas(targetIndex);
+
+          // Directional preloading only when frame changes
+          const dist = Math.abs(targetIndex - lastPreloadedFrameRef.current);
+          if (dist >= 2) {
+            const dir = targetIndex >= lastPreloadedFrameRef.current ? 1 : -1;
+            lastPreloadedFrameRef.current = targetIndex;
+            preloadNeighborhood(targetIndex, dir, isMobileRef.current);
+          }
+        }
+
+        // Video completion check & Navbar reveal event
+        updateHUD(currentProgress);
+
+        // Deterministic text animation based solely on progress
+        renderTextForProgress(currentProgress);
+      };
+
+      // Initialize in sleep mode
+      resetToSleepMode();
+
+      // Scrub must drive an animation: ScrollTrigger.onUpdate alone reports raw
+      // scroll progress and bypasses scrub smoothing entirely.
+      const animation = gsap.to(playhead, {
+        progress: 1,
+        ease: "none",
+        onUpdate: renderIntro,
+        scrollTrigger: {
+          trigger: containerRef.current,
+          start: "top top",
+          end: () => `+=${Math.round((pinSectionRef.current?.offsetHeight || window.innerHeight) * (isMobileRef.current ? 4 : 4.8))}`,
+          pin: pinSectionRef.current,
+          pinSpacing: true,
+          anticipatePin: 1,
+          scrub: 0.65,
+          invalidateOnRefresh: true,
+          onRefresh: (self) => {
+            if (containerRef.current) {
+              containerRef.current.dataset.scrollEnd = String(self.end);
+            }
+            playhead.progress = self.progress;
+            renderIntro();
+          },
+        },
+      });
+
+      // Restore correct frame when reloading mid-scroll or after layout changes
+      playhead.progress = animation.scrollTrigger?.progress ?? 0;
+      renderIntro();
+    }, containerRef.current || undefined);
 
     return () => {
+      disposed = true;
       ctx.revert();
     };
-  }, [updateHUD, preloadNeighborhood, paintFrameToCanvas, prefersReducedMotion]);
+  }, [updateHUD, preloadNeighborhood, requestFrame, scheduleFramePaint, paintFrameToCanvas, prefersReducedMotion]);
 
-  // Automatic soundtrack audio playback when inside the website (no visible UI)
+  // Toggle audio play/pause
+  const toggleAudio = useCallback(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    if (audio.paused) {
+      audio
+        .play()
+        .then(() => {
+          setIsPlaying(true);
+          window.dispatchEvent(
+            new CustomEvent("audio-state-change", { detail: { isPlaying: true, isMuted: audio.muted } })
+          );
+        })
+        .catch((err) => {
+          console.warn("Audio play prevented:", err);
+        });
+    } else {
+      audio.pause();
+      setIsPlaying(false);
+      window.dispatchEvent(
+        new CustomEvent("audio-state-change", { detail: { isPlaying: false, isMuted: audio.muted } })
+      );
+    }
+  }, []);
+
+  // Synchronize remote audio toggle requests (e.g. from Navbar)
+  useEffect(() => {
+    const handleRemoteToggle = () => {
+      toggleAudio();
+    };
+    window.addEventListener("toggle-audio", handleRemoteToggle);
+    return () => {
+      window.removeEventListener("toggle-audio", handleRemoteToggle);
+    };
+  }, [toggleAudio]);
+
+  // Automatic soundtrack audio playback with autoplay fallback & state syncing
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
@@ -551,15 +662,41 @@ export default function HeroScrollVideo() {
     audio.volume = 0.8;
     audio.muted = false;
 
+    const onPlay = () => {
+      setIsPlaying(true);
+      window.dispatchEvent(
+        new CustomEvent("audio-state-change", { detail: { isPlaying: true, isMuted: audio.muted } })
+      );
+    };
+
+    const onPause = () => {
+      setIsPlaying(false);
+      window.dispatchEvent(
+        new CustomEvent("audio-state-change", { detail: { isPlaying: false, isMuted: audio.muted } })
+      );
+    };
+
+    audio.addEventListener("play", onPlay);
+    audio.addEventListener("pause", onPause);
+
     // Attempt immediate autoplay
     const tryAutoplay = () => {
       audio
         .play()
+        .then(() => {
+          setIsPlaying(true);
+        })
         .catch(() => {
           // If browser restricts initial unprompted autoplay,
           // start audio immediately upon the very first user interaction (scroll, touch, click, wheel, key)
+          setIsPlaying(false);
           const onFirstInteraction = () => {
-            audio.play().catch(() => {});
+            audio
+              .play()
+              .then(() => {
+                setIsPlaying(true);
+              })
+              .catch(() => {});
             window.removeEventListener("scroll", onFirstInteraction);
             window.removeEventListener("pointerdown", onFirstInteraction);
             window.removeEventListener("touchstart", onFirstInteraction);
@@ -576,6 +713,11 @@ export default function HeroScrollVideo() {
     };
 
     tryAutoplay();
+
+    return () => {
+      audio.removeEventListener("play", onPlay);
+      audio.removeEventListener("pause", onPause);
+    };
   }, []);
 
   return (
@@ -586,13 +728,19 @@ export default function HeroScrollVideo() {
       style={{ height: prefersReducedMotion ? "100vh" : "auto" }}
       aria-label="Cinematic Awakening Experience"
     >
-      {/* Background Soundtrack Audio */}
-      <audio ref={audioRef} src="/awakening_audio.mp3" loop preload="auto" />
+      {/* Background Soundtrack Audio: One Sun One Moon */}
+      <audio
+        ref={audioRef}
+        src="/one-sun-one-moon.mp3"
+        loop
+        preload="auto"
+        onError={(e) => console.warn("Background audio notice:", e)}
+      />
 
-      {/* Pinned Viewport Container (h-screen with h-[100dvh] fallback for exact mobile browser viewport fit) */}
+      {/* Stable viewport height prevents mobile browser chrome from shifting the pin. */}
       <div
         ref={pinSectionRef}
-        className="w-full h-screen h-[100dvh] overflow-hidden flex flex-col justify-between relative z-10 pt-14 sm:pt-20"
+        className="hero-viewport w-full overflow-hidden flex flex-col justify-between relative z-10 pt-14 sm:pt-20"
       >
         {/* Full-screen Media Layer (Hardware-Accelerated Canvas with Instant Fallback Poster) */}
         <div className="absolute inset-0 z-0 bg-black flex items-center justify-center overflow-hidden">
@@ -654,23 +802,40 @@ export default function HeroScrollVideo() {
             <span className="w-6 sm:w-16 h-[1px] bg-white/20" />
           </div>
 
-          {/* Main Cinematic Serif Headline: Cormorant Garamond */}
-          <h1 className="font-cinematic font-black tracking-tight text-white uppercase text-3xl min-[380px]:text-4xl sm:text-7xl lg:text-[5.5rem] xl:text-[6.5rem] leading-[0.94] sm:leading-[0.92] mb-2 sm:mb-4">
-            <span
-              ref={lineOneRef}
-              className="block will-change-[transform,opacity]"
+          {/* Headline Container: Wraps both "THIS IS SRIRAM K" and direction-aware return "THANK YOU" in the exact same coordinates */}
+          <div className="relative w-full mb-2 sm:mb-4">
+            {/* Main Cinematic Serif Headline: Cormorant Garamond (Shown on downward scroll) */}
+            <h1 className="font-cinematic font-black tracking-tight text-white uppercase text-3xl min-[380px]:text-4xl sm:text-7xl lg:text-[5.5rem] xl:text-[6.5rem] leading-[0.94] sm:leading-[0.92]">
+              <span
+                ref={lineOneRef}
+                className="block will-change-[transform,opacity]"
+                style={{ opacity: 0 }}
+              >
+                THIS IS
+              </span>
+              <span
+                ref={nameRef}
+                className="block italic font-normal tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-[#fef3c7] via-[#e5c07b] to-[#d4af37] drop-shadow-[0_4px_28px_rgba(229,192,123,0.30)] will-change-[transform,opacity]"
+                style={{ opacity: 0 }}
+              >
+                SRIRAM K
+              </span>
+            </h1>
+
+            {/* Direction-Aware Return Headline: "THANK YOU" (Shown on upward scroll in exact same position & typography) */}
+            <div
+              ref={thankYouRef}
+              className="absolute inset-0 flex flex-col justify-start pointer-events-none will-change-[transform,opacity]"
               style={{ opacity: 0 }}
+              aria-hidden="true"
             >
-              THIS IS
-            </span>
-            <span
-              ref={nameRef}
-              className="block italic font-normal tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-[#fef3c7] via-[#e5c07b] to-[#d4af37] drop-shadow-[0_4px_28px_rgba(229,192,123,0.30)] will-change-[transform,opacity]"
-              style={{ opacity: 0 }}
-            >
-              SRIRAM K
-            </span>
-          </h1>
+              <div className="font-cinematic font-black tracking-tight uppercase text-3xl min-[380px]:text-4xl sm:text-7xl lg:text-[5.5rem] xl:text-[6.5rem] leading-[0.94] sm:leading-[0.92]">
+                <span className="block italic font-normal tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-[#fef3c7] via-[#e5c07b] to-[#d4af37] drop-shadow-[0_4px_28px_rgba(229,192,123,0.30)]">
+                  THANK YOU
+                </span>
+              </div>
+            </div>
+          </div>
 
           {/* Tagline */}
           <p
@@ -741,8 +906,29 @@ export default function HeroScrollVideo() {
             </div>
           </div>
 
-          {/* Bottom Right: Social icons */}
-          <div className="flex items-center gap-3 sm:gap-4 pointer-events-auto">
+          {/* Bottom Right: Audio toggle & Social icons */}
+          <div className="flex items-center gap-2.5 sm:gap-4 pointer-events-auto">
+            <button
+              onClick={toggleAudio}
+              type="button"
+              id="hero-audio-toggle"
+              aria-label={isPlaying ? "Pause soundtrack (One Sun, One Moon)" : "Play soundtrack (One Sun, One Moon)"}
+              title={isPlaying ? "Pause soundtrack (One Sun, One Moon)" : "Play soundtrack (One Sun, One Moon)"}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-neutral-300 hover:text-white transition-all text-[11px] font-mono cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-emerald-400"
+            >
+              {isPlaying ? (
+                <>
+                  <Volume2 className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
+                  <span className="hidden sm:inline text-[10px] text-emerald-400 tracking-wider">SOUND ON</span>
+                </>
+              ) : (
+                <>
+                  <VolumeX className="w-3.5 h-3.5 text-neutral-400" />
+                  <span className="hidden sm:inline text-[10px] text-neutral-400 tracking-wider">SOUND OFF</span>
+                </>
+              )}
+            </button>
+
             <a
               href={PORTFOLIO_DATA.links.github}
               target="_blank"

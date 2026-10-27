@@ -8,9 +8,7 @@ import {
   Code,
   Cpu,
   Layers,
-  CheckCircle2,
   Sparkles,
-  Terminal,
   ShieldCheck,
 } from "lucide-react";
 

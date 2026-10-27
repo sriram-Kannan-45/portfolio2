@@ -7,10 +7,11 @@ import HeroScrollVideo from "@/components/HeroScrollVideo";
 import AboutSection from "@/components/AboutSection";
 import SkillsSection from "@/components/SkillsSection";
 import ProjectsSection from "@/components/ProjectsSection";
-import FounderSection from "@/components/FounderSection";
+import ProfessionalSpotlights from "@/components/ProfessionalSpotlights";
 import ExperienceSection from "@/components/ExperienceSection";
 import ContactSection from "@/components/ContactSection";
 import Footer from "@/components/Footer";
+import ThankYouSection from "@/components/ThankYouSection";
 import SmoothScroll from "@/components/SmoothScroll";
 
 // Lazy-load Three.js WebGL background with SSR disabled to prevent hydration errors
@@ -28,11 +29,11 @@ export default function Home() {
     let ticking = false;
 
     const checkScroll = () => {
-      const aboutEl = document.getElementById("about");
-      if (!aboutEl) return;
-      const rect = aboutEl.getBoundingClientRect();
-      // When the About section enters the viewport, user has scrolled past the pinned video
-      const past = rect.top <= window.innerHeight * 0.85;
+      const hero = document.getElementById("hero");
+      const heroEnd = Number(hero?.dataset.scrollEnd);
+      const past =
+        (heroEnd > 0 && window.scrollY >= heroEnd) ||
+        (hero ? hero.dataset.videoComplete === "true" : false);
 
       if (past !== isPastVideoRef.current) {
         isPastVideoRef.current = past;
@@ -107,8 +108,8 @@ export default function Home() {
       {/* Featured Projects */}
       <ProjectsSection />
 
-      {/* Founder's Vision Spotlight */}
-      <FounderSection />
+      {/* Professional and Freelance Experience Spotlights */}
+      <ProfessionalSpotlights />
 
       {/* Career Trajectory & Verifiable Credentials */}
       <ExperienceSection />
@@ -118,6 +119,9 @@ export default function Home() {
 
       {/* Footer */}
       <Footer />
+
+      {/* Standalone cinematic closing screen after all portfolio content */}
+      <ThankYouSection />
     </main>
   );
 }

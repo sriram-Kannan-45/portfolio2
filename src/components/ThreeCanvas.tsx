@@ -1,8 +1,15 @@
 "use client";
 
-import React, { useRef, useMemo, useEffect, useCallback } from "react";
+import React, { useRef, useMemo, useEffect, useSyncExternalStore } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
+
+const subscribeToMotion = (notify: () => void) => {
+  if (typeof window === "undefined") return () => {};
+  const query = window.matchMedia("(prefers-reduced-motion: reduce)");
+  query.addEventListener("change", notify);
+  return () => query.removeEventListener("change", notify);
+};
 
 // ---------------------------------------------------------------------------
 // Mobile detection hook for dynamic window resize & orientation
@@ -244,9 +251,12 @@ function SubtleDepthParticles() {
     const spreadX = isMobile ? 8 : 16;
     const spreadY = isMobile ? 10 : 12;
     for (let i = 0; i < count; i++) {
-      pos[i * 3] = (Math.random() - 0.5) * spreadX;
-      pos[i * 3 + 1] = (Math.random() - 0.5) * spreadY;
-      pos[i * 3 + 2] = (Math.random() - 0.5) * 8 - 2;
+      const pseudoX = Math.sin(i * 12.9898 + 78.233) * 43758.5453;
+      const pseudoY = Math.sin(i * 93.9898 + 67.345) * 24634.6345;
+      const pseudoZ = Math.sin(i * 45.3421 + 12.456) * 31234.1234;
+      pos[i * 3] = (pseudoX - Math.floor(pseudoX) - 0.5) * spreadX;
+      pos[i * 3 + 1] = (pseudoY - Math.floor(pseudoY) - 0.5) * spreadY;
+      pos[i * 3 + 2] = (pseudoZ - Math.floor(pseudoZ) - 0.5) * 8 - 2;
     }
     geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
     return geo;
@@ -276,11 +286,11 @@ function SubtleDepthParticles() {
 // ScrollCameraController - Subtle camera tilt and dolly tied to scroll
 // ---------------------------------------------------------------------------
 function ScrollCameraController() {
-  const { camera, size } = useThree();
+  const { size } = useThree();
   const smoothedScrollRef = useRef<number>(0);
   const isMobile = size.width < 768;
 
-  useFrame((_, delta) => {
+  useFrame((state, delta) => {
     if (document.hidden) return;
     const d = Math.min(delta, 0.05);
 
@@ -291,8 +301,8 @@ function ScrollCameraController() {
     );
     const sp = smoothedScrollRef.current;
 
-    camera.position.y = -sp * (isMobile ? 0.3 : 0.55);
-    camera.position.z = (isMobile ? 5.8 : 6.0) + sp * (isMobile ? 0.25 : 0.35);
+    state.camera.position.y = -sp * (isMobile ? 0.3 : 0.55);
+    state.camera.position.z = (isMobile ? 5.8 : 6.0) + sp * (isMobile ? 0.25 : 0.35);
   });
 
   return null;
@@ -336,30 +346,14 @@ function MouseTrackerLight({ isMobile }: { isMobile: boolean }) {
 // ---------------------------------------------------------------------------
 export default function ThreeCanvas({ active = true }: { active?: boolean }) {
   const isMobile = useIsMobile();
-  const prefersReducedMotionRef = useRef(
-    typeof window !== "undefined"
-      ? window.matchMedia("(prefers-reduced-motion: reduce)").matches
-      : false
+  const prefersReducedMotion = useSyncExternalStore(
+    subscribeToMotion,
+    () => (typeof window !== "undefined" ? window.matchMedia("(prefers-reduced-motion: reduce)").matches : false),
+    () => false
   );
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const handleReducedMotionChange = useCallback((e: MediaQueryListEvent) => {
-    prefersReducedMotionRef.current = e.matches;
-    if (containerRef.current) {
-      containerRef.current.style.display = e.matches ? "none" : "";
-    }
-  }, []);
-
-  useEffect(() => {
-    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
-    mq.addEventListener("change", handleReducedMotionChange);
-    if (containerRef.current && mq.matches) {
-      containerRef.current.style.display = "none";
-    }
-    return () => mq.removeEventListener("change", handleReducedMotionChange);
-  }, [handleReducedMotionChange]);
-
-  if (prefersReducedMotionRef.current) {
+  if (prefersReducedMotion) {
     return null;
   }
 

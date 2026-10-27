@@ -1,16 +1,10 @@
 "use client";
 
 import React, { useState } from "react";
-import { PORTFOLIO_DATA, Project } from "@/data/portfolioData";
+import { PORTFOLIO_DATA } from "@/data/portfolioData";
 import { TechIcon } from "@/components/TechIcon";
 import {
-  ExternalLink,
-  Layers,
   Sparkles,
-  Activity,
-  CheckCircle,
-  FileCode,
-  Shield,
   ArrowUpRight,
 } from "lucide-react";
 

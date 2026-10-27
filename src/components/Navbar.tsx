@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import { PORTFOLIO_DATA } from "@/data/portfolioData";
-import { Menu, X, ArrowUpRight, Download } from "lucide-react";
+import { Menu, X, ArrowUpRight, Download, Volume2, VolumeX } from "lucide-react";
 
 interface NavbarProps {
   visible?: boolean;
@@ -13,6 +13,7 @@ export default function Navbar({ visible }: NavbarProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [internalVisible, setInternalVisible] = useState(false);
   const [activeSection, setActiveSection] = useState<string>("hero");
+  const [isAudioPlaying, setIsAudioPlaying] = useState<boolean>(true);
   const visibleRef = useRef(false);
 
   const navLinks = [
@@ -20,10 +21,28 @@ export default function Navbar({ visible }: NavbarProps) {
     { id: "about", label: "About", href: "#about" },
     { id: "skills", label: "Expertise", href: "#skills" },
     { id: "projects", label: "Projects", href: "#projects" },
-    { id: "founder", label: "Founder", href: "#founder" },
+    { id: "founder", label: "Freelance", href: "#founder" },
     { id: "experience", label: "Experience", href: "#experience" },
     { id: "contact", label: "Contact", href: "#contact" },
   ];
+
+  // Synchronize audio state across the website
+  useEffect(() => {
+    const handleAudioChange = (e: Event) => {
+      const customEvent = e as CustomEvent<{ isPlaying: boolean; isMuted: boolean }>;
+      if (customEvent.detail && typeof customEvent.detail.isPlaying === "boolean") {
+        setIsAudioPlaying(customEvent.detail.isPlaying);
+      }
+    };
+    window.addEventListener("audio-state-change", handleAudioChange);
+    return () => {
+      window.removeEventListener("audio-state-change", handleAudioChange);
+    };
+  }, []);
+
+  const handleToggleAudio = () => {
+    window.dispatchEvent(new CustomEvent("toggle-audio"));
+  };
 
   useEffect(() => {
     // 1. Listen for video completion event from HeroScrollVideo ScrollTrigger
@@ -40,9 +59,9 @@ export default function Navbar({ visible }: NavbarProps) {
     const checkScrollAndActive = () => {
       const scrollY = window.scrollY;
       const windowHeight = window.innerHeight;
-      const isMobile = window.innerWidth < 640;
-      const heroThreshold = windowHeight * (isMobile ? 4.0 : 4.7);
-      const isPastHero = scrollY >= heroThreshold;
+      const hero = document.getElementById("hero");
+      const heroEnd = Number(hero?.dataset.scrollEnd);
+      const isPastHero = hero?.dataset.videoComplete === "true" || (heroEnd > 0 && scrollY >= heroEnd);
 
       if (isPastHero !== visibleRef.current) {
         visibleRef.current = isPastHero;
@@ -61,13 +80,13 @@ export default function Navbar({ visible }: NavbarProps) {
       }
 
       // If before or in the pinned hero video
-      if (scrollY < windowHeight * (isMobile ? 3.9 : 4.5)) {
+      if (!isPastHero) {
         setActiveSection("hero");
         return;
       }
 
       // Section tracking for remaining sections
-      const sectionIds = ["about", "skills", "projects", "founder", "experience", "contact"];
+      const sectionIds = ["about", "skills", "projects", "expleo", "founder", "experience", "contact"];
       let currentActive = "about";
 
       for (const id of sectionIds) {
@@ -80,7 +99,7 @@ export default function Navbar({ visible }: NavbarProps) {
         }
       }
 
-      setActiveSection(currentActive);
+      setActiveSection(currentActive === "expleo" ? "experience" : currentActive);
     };
 
     window.addEventListener("videoScrolledChange", handleVideoScrolled);
@@ -97,13 +116,7 @@ export default function Navbar({ visible }: NavbarProps) {
   }, []);
 
   const isMenuVisible = visible !== undefined ? visible : internalVisible;
-
-  // Automatically close mobile menu if navbar hides
-  useEffect(() => {
-    if (!isMenuVisible) {
-      setMobileMenuOpen(false);
-    }
-  }, [isMenuVisible]);
+  const isMobileMenuOpen = mobileMenuOpen && isMenuVisible;
 
   return (
     <header
@@ -141,7 +154,7 @@ export default function Navbar({ visible }: NavbarProps) {
                 SRIRAM K
               </span>
               <span className="text-[10px] tracking-widest text-neutral-400 uppercase font-mono">
-                Founder // Wave Init
+                Trainee // Expleo
               </span>
             </div>
           </a>
@@ -172,17 +185,39 @@ export default function Navbar({ visible }: NavbarProps) {
 
           {/* Actions & Status */}
           <div className="hidden sm:flex items-center gap-3">
-            {/* Availability Pill - Functional Link to Contact */}
+            {/* Current Role Pill - Functional Link to Contact */}
             <a
               href="#contact"
               className="hidden xl:inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-950/40 hover:bg-emerald-900/50 border border-emerald-500/20 hover:border-emerald-500/40 text-[11px] text-emerald-400 font-mono transition-all duration-200 cursor-pointer group focus:outline-none focus-visible:ring-1 focus-visible:ring-emerald-400"
-              title="Available for AI Build — Click to Contact"
+              title="Trainee at Expleo — Click to Contact"
               id="nav-availability-status"
-              aria-label="Available for AI Build — Navigate to Contact"
+              aria-label="Trainee at Expleo — Navigate to Contact"
             >
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping group-hover:scale-125 transition-transform" />
-              <span className="group-hover:text-emerald-300">Available for AI Build</span>
+              <span className="group-hover:text-emerald-300">{PORTFOLIO_DATA.identity.status.text}</span>
             </a>
+
+            {/* Background Music Toggle */}
+            <button
+              onClick={handleToggleAudio}
+              type="button"
+              id="nav-audio-toggle"
+              aria-label={isAudioPlaying ? "Pause soundtrack (One Sun, One Moon)" : "Play soundtrack (One Sun, One Moon)"}
+              title={isAudioPlaying ? "Pause soundtrack (One Sun, One Moon)" : "Play soundtrack (One Sun, One Moon)"}
+              className="inline-flex items-center gap-1.5 text-xs text-neutral-300 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] hover:border-white/20 px-3 py-1.5 rounded-full transition-all duration-200 shadow-sm cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-emerald-400"
+            >
+              {isAudioPlaying ? (
+                <>
+                  <Volume2 className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
+                  <span className="text-[11px] text-emerald-400 font-mono">Sound</span>
+                </>
+              ) : (
+                <>
+                  <VolumeX className="w-3.5 h-3.5 text-neutral-400" />
+                  <span className="text-[11px] text-neutral-400 font-mono">Muted</span>
+                </>
+              )}
+            </button>
 
             {/* Resume Button */}
             <a
@@ -216,6 +251,21 @@ export default function Navbar({ visible }: NavbarProps) {
 
           {/* Mobile Menu Toggle & Resume Quick Action */}
           <div className="flex sm:hidden items-center gap-1">
+            {/* Mobile Audio Toggle */}
+            <button
+              onClick={handleToggleAudio}
+              type="button"
+              id="mobile-nav-audio-toggle"
+              aria-label={isAudioPlaying ? "Pause soundtrack (One Sun, One Moon)" : "Play soundtrack (One Sun, One Moon)"}
+              className="p-2 min-w-[44px] min-h-[44px] flex items-center justify-center text-neutral-300 hover:text-white transition-colors cursor-pointer"
+            >
+              {isAudioPlaying ? (
+                <Volume2 className="w-4 h-4 text-emerald-400 animate-pulse" />
+              ) : (
+                <VolumeX className="w-4 h-4 text-neutral-400" />
+              )}
+            </button>
+
             <a
               href={PORTFOLIO_DATA.links.resumePdf}
               target="_blank"
@@ -228,32 +278,32 @@ export default function Navbar({ visible }: NavbarProps) {
               <Download className="w-4 h-4" />
             </a>
             <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              onClick={() => setMobileMenuOpen((prev) => !prev)}
               className="p-2 min-w-[44px] min-h-[44px] flex items-center justify-center text-neutral-400 hover:text-white transition-colors focus:outline-none focus:ring-1 focus:ring-emerald-500/50 rounded-lg"
-              aria-label={mobileMenuOpen ? "Close Navigation Menu" : "Open Navigation Menu"}
-              aria-expanded={mobileMenuOpen}
+              aria-label={isMobileMenuOpen ? "Close Navigation Menu" : "Open Navigation Menu"}
+              aria-expanded={isMobileMenuOpen}
               id="mobile-menu-toggle"
             >
-              {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+              {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
             </button>
           </div>
         </div>
       </div>
 
       {/* Mobile Dropdown Menu */}
-      {mobileMenuOpen && (
+      {isMobileMenuOpen && (
         <div className="sm:hidden bg-[#0a0a0e]/95 backdrop-blur-xl border-b border-white/10 px-4 pt-4 pb-6 mt-2 shadow-2xl max-h-[calc(100dvh-5rem)] overflow-y-auto animate-in slide-in-from-top-4 duration-200">
           <div className="flex flex-col gap-2">
             <a
               href="#contact"
               onClick={() => setMobileMenuOpen(false)}
               className="px-3 py-2.5 rounded-lg bg-emerald-950/30 hover:bg-emerald-900/40 border border-emerald-500/20 text-xs text-emerald-400 font-mono mb-2 flex items-center gap-2 transition-colors cursor-pointer group"
-              title="Available for AI Build — Click to Contact"
-              aria-label="Available for AI Build — Navigate to Contact"
+              title="Trainee at Expleo — Click to Contact"
+              aria-label="Trainee at Expleo — Navigate to Contact"
             >
               <span className="w-2 h-2 rounded-full bg-emerald-400 group-hover:scale-125 transition-transform" />
               <span className="group-hover:text-emerald-300">
-                {PORTFOLIO_DATA.identity.status.text || "Available for AI Build"}
+                {PORTFOLIO_DATA.identity.status.text}
               </span>
             </a>
 

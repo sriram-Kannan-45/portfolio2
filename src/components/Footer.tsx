@@ -3,8 +3,7 @@
 import React from "react";
 import Image from "next/image";
 import { PORTFOLIO_DATA } from "@/data/portfolioData";
-import { ArrowUp, ArrowUpRight, Mail, Phone } from "lucide-react";
-import { LinkedinIcon, GithubIcon } from "@/components/SocialIcons";
+import { ArrowUp, ArrowUpRight } from "lucide-react";
 
 export default function Footer() {
   const { identity, links } = PORTFOLIO_DATA;
@@ -35,7 +34,7 @@ export default function Footer() {
             </div>
 
             <p className="text-xs text-neutral-400 leading-relaxed max-w-sm">
-              AI & Data Science graduate, software builder, and founder of Wave Init Solutions.
+              AI & Data Science graduate and Trainee at Expleo, with prior freelance software development experience associated with Wave Init Solutions.
               Committed to engineering software that survives real users and solves tangible problems.
             </p>
 
@@ -63,7 +62,7 @@ export default function Footer() {
               Featured Projects
             </a>
             <a href="#founder" className="hover:text-white transition-colors">
-              Wave Init Spotlight
+              Freelance Experience
             </a>
             <a href="#experience" className="hover:text-white transition-colors">
               Experience &amp; Degrees

@@ -36,7 +36,7 @@ export default function ExperienceSection() {
         </div>
 
         <p className="text-xs sm:text-base text-neutral-400 max-w-md leading-relaxed font-normal">
-          An honest account of founding initiatives, engineering roles, and
+          An honest account of freelance development, professional training, and
           specialized deep learning internships.
         </p>
       </div>
@@ -83,7 +83,7 @@ export default function ExperienceSection() {
       {/* Experience Tab Content */}
       {activeTab === "experience" && (
         <div className="space-y-4 sm:space-y-6">
-          {PORTFOLIO_DATA.experience.map((item, index) => (
+          {PORTFOLIO_DATA.experience.map((item) => (
             <div
               key={`${item.company}-${item.role}`}
               className="glass-panel p-5 sm:p-7 md:p-9 rounded-2xl sm:rounded-3xl border border-white/10 hover:border-white/20 transition-all duration-300 relative overflow-hidden"
@@ -118,9 +118,9 @@ export default function ExperienceSection() {
 
                 <span
                   className={`self-start px-2.5 py-1 rounded-full text-[11px] sm:text-xs font-mono font-medium ${
-                    item.type === "Founding"
+                    item.type === "Freelance"
                       ? "bg-emerald-950/60 text-emerald-300 border border-emerald-500/30"
-                      : item.type === "Employment"
+                      : item.type === "Employment" || item.type === "Trainee"
                       ? "bg-blue-950/40 text-blue-300 border border-blue-500/20"
                       : "bg-purple-950/40 text-purple-300 border border-purple-500/20"
                   }`}
@@ -133,7 +133,7 @@ export default function ExperienceSection() {
                 {item.summary}
               </p>
 
-              <div className="space-y-2 mb-5 sm:mb-6">
+              {item.responsibilities.length > 0 && <div className="space-y-2 mb-5 sm:mb-6">
                 {item.responsibilities.map((resp, rIdx) => (
                   <div
                     key={rIdx}
@@ -143,9 +143,9 @@ export default function ExperienceSection() {
                     <span>{resp}</span>
                   </div>
                 ))}
-              </div>
+              </div>}
 
-              <div className="flex flex-wrap gap-2 items-center pt-4 border-t border-white/5">
+              {item.technologies.length > 0 && <div className="flex flex-wrap gap-2 items-center pt-4 border-t border-white/5">
                 {item.technologies.map((tech) => (
                   <div
                     key={tech}
@@ -166,7 +166,7 @@ export default function ExperienceSection() {
                     </div>
                   </div>
                 ))}
-              </div>
+              </div>}
             </div>
           ))}
         </div>

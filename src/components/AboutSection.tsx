@@ -10,8 +10,6 @@ import {
   ShieldCheck,
   GraduationCap,
   Briefcase,
-  Layers,
-  ArrowUpRight,
   Sparkles,
 } from "lucide-react";
 
@@ -35,7 +33,7 @@ export default function AboutSection() {
     {
       icon: ShieldCheck,
       title: "Reliability & Quality Mindset",
-      desc: "Professional QA foundation ensuring architectures survive unpredictable edge cases and scale cleanly.",
+      desc: "Developing a quality-focused approach to reliable software through professional engineering and testing training.",
     },
   ];
 
@@ -71,7 +69,7 @@ export default function AboutSection() {
           <div className="relative aspect-square w-full rounded-xl sm:rounded-2xl overflow-hidden mb-4 sm:mb-6 bg-neutral-900 border border-white/10">
             <Image
               src={PORTFOLIO_DATA.identity.portrait}
-              alt="Sriram K — Founder of Wave Init Solutions"
+              alt="Sriram K — Trainee at Expleo"
               fill
               className="object-cover object-center transition-transform duration-700 group-hover:scale-105"
               sizes="(max-width: 768px) 100vw, 400px"
@@ -84,7 +82,7 @@ export default function AboutSection() {
                 Sriram K
               </span>
               <span className="px-2.5 py-1 rounded-md bg-emerald-950/80 backdrop-blur-md border border-emerald-500/30 text-emerald-400">
-                Founder, Wave Init
+                Trainee at Expleo
               </span>
             </div>
           </div>
@@ -93,18 +91,18 @@ export default function AboutSection() {
           <div className="flex flex-col gap-2.5 sm:gap-3 font-mono text-[11px] sm:text-xs">
             <div className="flex items-center justify-between p-2.5 sm:p-3 rounded-xl bg-white/[0.03] border border-white/5 gap-2">
               <div className="flex items-center gap-2.5 text-neutral-300">
-                <Briefcase className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-                <span>Wave Init Solutions</span>
+                <Briefcase className="w-4 h-4 text-neutral-400 flex-shrink-0" />
+                <span>Expleo</span>
               </div>
-              <span className="text-emerald-400 font-medium flex-shrink-0">Founder</span>
+              <span className="text-neutral-400 flex-shrink-0">Trainee</span>
             </div>
 
             <div className="flex items-center justify-between p-2.5 sm:p-3 rounded-xl bg-white/[0.03] border border-white/5 gap-2">
               <div className="flex items-center gap-2.5 text-neutral-300">
-                <Briefcase className="w-4 h-4 text-neutral-400 flex-shrink-0" />
-                <span>Expleo Solutions</span>
+                <Briefcase className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                <span>Wave Init Solutions</span>
               </div>
-              <span className="text-neutral-400 flex-shrink-0">QA Engineer</span>
+              <span className="text-emerald-400 font-medium flex-shrink-0">Freelance</span>
             </div>
 
             <div className="flex flex-col min-[380px]:flex-row min-[380px]:items-center justify-between p-2.5 sm:p-3 rounded-xl bg-white/[0.03] border border-white/5 gap-1.5 min-[380px]:gap-2">
@@ -130,10 +128,10 @@ export default function AboutSection() {
 
             <p className="text-xs sm:text-sm text-neutral-400 leading-relaxed font-normal">
               My engineering philosophy focuses on building reliable, testable software solutions.
-              While I currently work as a Quality Assurance Engineer at Expleo Solutions, my primary
-              creative drive and technical venture is building intelligent software products — from
-              deep learning diagnostics like the Bone Fracture Detection system to full-scale web
-              architectures like Wave Init LMS and our venture studio Wave Init Solutions.
+              I am currently a Trainee at Expleo, developing practical technical knowledge through
+              professional engineering and testing training. My experience also includes 2 Months
+              as a Freelance Software Developer associated with Wave Init Solutions, alongside
+              projects such as the Bone Fracture Detection system and Wave Init LMS.
             </p>
           </div>
 
