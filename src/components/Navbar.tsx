@@ -202,8 +202,8 @@ export default function Navbar({ visible }: NavbarProps) {
               onClick={handleToggleAudio}
               type="button"
               id="nav-audio-toggle"
-              aria-label={isAudioPlaying ? "Pause soundtrack (One Sun, One Moon)" : "Play soundtrack (One Sun, One Moon)"}
-              title={isAudioPlaying ? "Pause soundtrack (One Sun, One Moon)" : "Play soundtrack (One Sun, One Moon)"}
+              aria-label={isAudioPlaying ? "Pause background music" : "Play background music"}
+              title={isAudioPlaying ? "Pause background music" : "Play background music"}
               className="inline-flex items-center gap-1.5 text-xs text-neutral-300 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] hover:border-white/20 px-3 py-1.5 rounded-full transition-all duration-200 shadow-sm cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-emerald-400"
             >
               {isAudioPlaying ? (
@@ -256,7 +256,7 @@ export default function Navbar({ visible }: NavbarProps) {
               onClick={handleToggleAudio}
               type="button"
               id="mobile-nav-audio-toggle"
-              aria-label={isAudioPlaying ? "Pause soundtrack (One Sun, One Moon)" : "Play soundtrack (One Sun, One Moon)"}
+              aria-label={isAudioPlaying ? "Pause background music" : "Play background music"}
               className="p-2 min-w-[44px] min-h-[44px] flex items-center justify-center text-neutral-300 hover:text-white transition-colors cursor-pointer"
             >
               {isAudioPlaying ? (

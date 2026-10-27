@@ -728,10 +728,10 @@ export default function HeroScrollVideo() {
       style={{ height: prefersReducedMotion ? "100vh" : "auto" }}
       aria-label="Cinematic Awakening Experience"
     >
-      {/* Background Soundtrack Audio: One Sun One Moon */}
+      {/* Original default background soundtrack */}
       <audio
         ref={audioRef}
-        src="/one-sun-one-moon.mp3"
+        src="/awakening_audio.mp3"
         loop
         preload="auto"
         onError={(e) => console.warn("Background audio notice:", e)}
@@ -912,8 +912,8 @@ export default function HeroScrollVideo() {
               onClick={toggleAudio}
               type="button"
               id="hero-audio-toggle"
-              aria-label={isPlaying ? "Pause soundtrack (One Sun, One Moon)" : "Play soundtrack (One Sun, One Moon)"}
-              title={isPlaying ? "Pause soundtrack (One Sun, One Moon)" : "Play soundtrack (One Sun, One Moon)"}
+              aria-label={isPlaying ? "Pause background music" : "Play background music"}
+              title={isPlaying ? "Pause background music" : "Play background music"}
               className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-neutral-300 hover:text-white transition-all text-[11px] font-mono cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-emerald-400"
             >
               {isPlaying ? (

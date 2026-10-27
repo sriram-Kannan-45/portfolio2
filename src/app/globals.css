@@ -225,6 +225,142 @@
   }
 }
 
+/* An organic neural mesh lights up locally in response to pointer interaction. */
+.neural-network-background {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  visibility: hidden;
+  opacity: 0.85;
+  contain: strict;
+  mask-image: radial-gradient(ellipse at 50% 45%, rgba(0, 0, 0, 0.45), #000 80%);
+}
+
+.neural-network-background[data-active="true"] {
+  visibility: visible;
+}
+
+.neural-network-graph,
+.neural-network-aura {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.neural-network-aura {
+  background:
+    radial-gradient(ellipse at 8% 34%, rgba(16, 185, 129, 0.045), transparent 38%),
+    radial-gradient(ellipse at 90% 68%, rgba(52, 211, 153, 0.04), transparent 38%);
+}
+
+.neural-network-connections path {
+  stroke: #49766a;
+  stroke-width: 0.65;
+  opacity: 0.28;
+}
+
+.neural-network-signal {
+  stroke: #a7f3d0;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-dasharray: 0.08 1;
+  opacity: 0;
+}
+
+.neural-network-neuron {
+  opacity: 0.4;
+}
+
+.neural-network-core {
+  fill: #a7f3d0;
+}
+
+.neural-network-touch-glow {
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .neural-network-signal,
+  .neural-network-origin { display: none; }
+}
+
+/* Subtle warm smoke behind the portfolio after the intro. */
+.portfolio-smoke {
+  position: absolute;
+  inset: 0;
+  opacity: 0.5;
+  overflow: hidden;
+  pointer-events: none;
+  visibility: hidden;
+  contain: strict;
+}
+
+.portfolio-smoke[data-active="true"] {
+  visibility: visible;
+}
+
+.portfolio-smoke-cloud,
+.portfolio-smoke-haze,
+.portfolio-smoke-wisp {
+  position: absolute;
+  inset: -12%;
+  width: 124%;
+  height: 124%;
+  transform-origin: center;
+  will-change: transform;
+}
+
+.portfolio-smoke-primary {
+  opacity: 0.55;
+  animation: portfolio-smoke-drift 24s ease-in-out -8s infinite alternate;
+}
+
+.portfolio-smoke-secondary {
+  opacity: 0.32;
+  animation: portfolio-smoke-counterflow 32s ease-in-out -16s infinite alternate;
+}
+
+.portfolio-smoke-haze {
+  background:
+    radial-gradient(ellipse at 30% 42%, rgba(189, 154, 95, 0.055), transparent 55%),
+    radial-gradient(ellipse at 75% 68%, rgba(205, 145, 57, 0.04), transparent 48%);
+}
+
+.portfolio-smoke-wisp {
+  opacity: 0.4;
+  background:
+    radial-gradient(ellipse at 36% 58%, rgba(191, 178, 150, 0.17), transparent 43%),
+    radial-gradient(ellipse at 67% 44%, rgba(164, 144, 105, 0.1), transparent 38%);
+  animation: portfolio-smoke-counterflow 20s ease-in-out -6s infinite alternate-reverse;
+}
+
+@keyframes portfolio-smoke-drift {
+  from { transform: translate3d(-4%, 3%, 0) scale(1.02) rotate(-2deg); }
+  to { transform: translate3d(5%, -4%, 0) scale(1.13) rotate(3deg); }
+}
+
+@keyframes portfolio-smoke-counterflow {
+  from { transform: translate3d(5%, 4%, 0) scale(1.1) rotate(3deg); }
+  to { transform: translate3d(-5%, -3%, 0) scale(1.02) rotate(-3deg); }
+}
+
+.portfolio-smoke[data-active="false"] *,
+.portfolio-smoke[data-paused="true"] * {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .portfolio-smoke-cloud,
+  .portfolio-smoke-wisp {
+    animation: none;
+    will-change: auto;
+  }
+}
+
 /* Final cinematic scene. The outer section owns pin spacing after the footer. */
 .closing-screen {
   position: relative;

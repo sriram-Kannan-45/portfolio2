@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import dynamic from "next/dynamic";
 import Navbar from "@/components/Navbar";
 import HeroScrollVideo from "@/components/HeroScrollVideo";
 import AboutSection from "@/components/AboutSection";
@@ -11,19 +10,15 @@ import ProfessionalSpotlights from "@/components/ProfessionalSpotlights";
 import ExperienceSection from "@/components/ExperienceSection";
 import ContactSection from "@/components/ContactSection";
 import Footer from "@/components/Footer";
-import ThankYouSection from "@/components/ThankYouSection";
 import SmoothScroll from "@/components/SmoothScroll";
-
-// Lazy-load Three.js WebGL background with SSR disabled to prevent hydration errors
-const ThreeCanvas = dynamic(() => import("@/components/ThreeCanvas"), {
-  ssr: false,
-});
+import SmokeBackground from "@/components/SmokeBackground";
+import NeuralNetworkBackground from "@/components/NeuralNetworkBackground";
 
 export default function Home() {
   const [isPastVideo, setIsPastVideo] = useState(false);
   const isPastVideoRef = useRef(false);
 
-  // Monitor scroll progress: hide smoke and 3D diamond during video hero,
+  // Monitor scroll progress: hide smoke and the neural network during video hero,
   // fade them in only after the user completes scrolling through the awakening video.
   useEffect(() => {
     let ticking = false;
@@ -79,18 +74,18 @@ export default function Home() {
       <SmoothScroll />
 
       {/* 
-        Background Visual Atmosphere (3D Diamond Depth Layer):
+        Moving smoke and the neural network appear as the intro finishes.
         Hidden completely while scrolling through the Awakening video hero.
         Smoothly fades in once the video scroll completes and portfolio content begins.
       */}
       <div
-        className={`fixed inset-0 pointer-events-none z-[1] transition-opacity duration-1000 ease-out ${
+        className={`fixed inset-0 pointer-events-none z-[1] transition-opacity duration-700 ease-out ${
           isPastVideo ? "opacity-100" : "opacity-0"
         }`}
         aria-hidden="true"
       >
-        {/* Background Interactive 3D Depth Layer */}
-        <ThreeCanvas active={isPastVideo} />
+        <SmokeBackground active={isPastVideo} />
+        <NeuralNetworkBackground active={isPastVideo} />
       </div>
 
       {/* Top Navigation - revealed only after video frames are fully scrolled */}
@@ -119,9 +114,6 @@ export default function Home() {
 
       {/* Footer */}
       <Footer />
-
-      {/* Standalone cinematic closing screen after all portfolio content */}
-      <ThankYouSection />
     </main>
   );
 }
