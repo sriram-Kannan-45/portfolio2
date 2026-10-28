@@ -50,7 +50,6 @@ export default function HeroScrollVideo() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const posterRef = useRef<HTMLImageElement>(null);
-  const scrollIndicatorRef = useRef<HTMLDivElement>(null);
 
   // Sequential text reveal refs
   const eyebrowRef = useRef<HTMLDivElement>(null);
@@ -445,12 +444,6 @@ export default function HeroScrollVideo() {
         gsap.set(taglineRef.current, { y: taglineY });
         gsap.set(ctasRef.current, { y: ctasY });
         gsap.set(thankYouRef.current, { y: 0 });
-
-        gsap.set(scrollIndicatorRef.current, {
-          opacity: 1,
-          y: 0,
-          overwrite: "auto",
-        });
       };
 
       /**
@@ -466,8 +459,8 @@ export default function HeroScrollVideo() {
        * it disappears at progress < 0.90 following the same progress curve.
        *
        * Scene timeline (progress 0 → 1):
-       *   0.00 → 0.02  Sleep — all text hidden, scroll indicator visible
-       *   0.02 → 0.05  Scroll indicator fades out
+       *   0.00 → 0.02  Sleep — introduction text hidden
+       *   Scroll guidance remains visible throughout the pinned introduction.
        *   0.06 → 0.22  Eyebrow "AI & SOFTWARE BUILDER" fades in
        *   0.22 → 0.40  "THIS IS" fades in
        *   0.40 → 0.60  "SRIRAM K" fades in (golden italic)
@@ -481,13 +474,6 @@ export default function HeroScrollVideo() {
           resetToSleepMode();
           return;
         }
-
-        // ── Scroll indicator fades out ───────────────────────────────────────
-        const indicatorT = Math.min(1, Math.max(0, (progress - 0.02) / (0.05 - 0.02)));
-        gsap.set(scrollIndicatorRef.current, {
-          opacity: 1 - indicatorT,
-          y: indicatorT * 12,
-        });
 
         // Always keep THANK YOU hidden — it's not a scroll-driven text element
         gsap.set(thankYouRef.current, {
@@ -883,26 +869,20 @@ export default function HeroScrollVideo() {
         </div>
 
         {/* Bottom Bar: Indicators and Social links */}
-        <div className="relative z-10 w-full px-4 xs:px-5 sm:px-12 lg:px-20 pb-3 xs:pb-4 sm:pb-8 flex items-center justify-between pointer-events-none">
-          {/* Bottom Left: SCROLL indicator */}
-          <div className="flex items-center gap-1.5 sm:gap-3">
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.8)]" />
-            <span className="w-6 sm:w-12 h-[1px] bg-white/20" />
-            <span className="text-[9px] min-[380px]:text-[10px] font-mono tracking-[0.22em] sm:tracking-[0.25em] text-neutral-400 uppercase">
-              SCROLL
+        <div className="relative z-10 w-full px-4 xs:px-5 sm:px-12 lg:px-20 pb-[max(0.75rem,env(safe-area-inset-bottom))] xs:pb-[max(1rem,env(safe-area-inset-bottom))] sm:pb-8 pt-2 flex items-center justify-between gap-3 shrink-0 pointer-events-none">
+          {/* Keep scroll guidance visible until the introduction leaves the viewport. */}
+          <div className="hero-scroll-cue flex items-center gap-2.5 sm:gap-3">
+            <span className="flex h-8 w-8 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-full border border-amber-200/25 bg-black/40 text-amber-200" aria-hidden="true">
+              <ChevronDown className="hero-scroll-cue-arrow h-4 w-4" />
             </span>
-          </div>
-
-          {/* Bottom Center: SCROLL TO EXPLORE indicator */}
-          <div
-            ref={scrollIndicatorRef}
-            className="hidden sm:flex flex-col items-center gap-2 text-center -translate-x-1/2 left-1/2 absolute transition-opacity duration-500"
-          >
-            <span className="text-[10px] font-mono tracking-[0.25em] text-neutral-400 uppercase">
-              SCROLL TO EXPLORE
-            </span>
-            <div className="w-4 h-7 rounded-full border border-white/25 flex items-start justify-center p-1">
-              <div className="w-1 h-2 rounded-full bg-amber-400 animate-bounce" />
+            <div className="flex flex-col gap-0.5">
+              <span className="font-mono text-[10px] sm:text-[11px] font-medium uppercase tracking-[0.14em] sm:tracking-[0.2em] text-amber-100">
+                Scroll to view
+              </span>
+              <span className="text-[10px] sm:text-[11px] text-neutral-400">
+                <span className="sm:hidden">Swipe up to explore</span>
+                <span className="hidden sm:inline">Explore my portfolio</span>
+              </span>
             </div>
           </div>
 

@@ -178,6 +178,19 @@
   padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
 }
 
+.hero-scroll-cue-arrow {
+  animation: hero-scroll-nudge 1.8s ease-in-out infinite;
+}
+
+@keyframes hero-scroll-nudge {
+  0%, 100% { transform: translateY(-2px); }
+  50% { transform: translateY(3px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-scroll-cue-arrow { animation: none; }
+}
+
 .hero-actions {
   isolation: isolate;
   overflow: visible;
