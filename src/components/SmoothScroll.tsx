@@ -9,6 +9,9 @@ const ACTIVE_KEY_DECAY = 14.0;         // Snappy, responsive tracking
 const INTRO_SCROLL_DECAY = 9;
 const INTRO_MAX_CONTROLLED_LEAD = 180;
 
+// Mobile touch-tuned parameters: fast, tactile, and responsive
+const MOBILE_TOUCH_MOVE_MULT = 1.35;    // Tactile dragging responsiveness on touch screens
+
 export default function SmoothScroll() {
   const currentScrollRef = useRef(0);
   const targetScrollRef = useRef(0);
@@ -29,6 +32,13 @@ export default function SmoothScroll() {
 
   // Dedicated anchor navigation state for navbar and in-page CTA links
   const isAnchorNavigatingRef = useRef(false);
+
+  // Mobile touch gesture tracking
+  const touchStartYRef = useRef(0);
+  const touchStartXRef = useRef(0);
+  const touchLastYRef = useRef(0);
+  const touchStartTimeRef = useRef(0);
+  const isTouchDraggingRef = useRef(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -57,7 +67,10 @@ export default function SmoothScroll() {
     const isInIntro = () => {
       const hero = document.getElementById("hero");
       const end = Number(hero?.dataset.scrollEnd);
-      return Number.isFinite(end) && currentScrollRef.current < end;
+      if (Number.isFinite(end) && end > 0) {
+        return currentScrollRef.current < end;
+      }
+      return currentScrollRef.current < (window.innerHeight || 800) * 3.8;
     };
 
     const getLeadCap = () => isInIntro()
@@ -371,7 +384,7 @@ export default function SmoothScroll() {
       stopAnimation();
     };
 
-    // Synchronize when scroll is triggered externally (native scrollbar drag, touch, browser nav)
+    // Synchronize when scroll is triggered externally (native scrollbar drag, external nav)
     const onScroll = () => {
       // If triggered by our own writeScroll within the last 100ms, ignore
       if (performance.now() - lastProgrammaticScrollTimeRef.current < 100) {
@@ -381,23 +394,32 @@ export default function SmoothScroll() {
       const currentY = window.scrollY;
       currentScrollRef.current = currentY;
 
-      // When not animating or during native touch scroll, sync target
-      if (!isAnimatingRef.current || isTouchRef.current) {
+      // When not animating and not actively dragging touch, sync target
+      if (!isAnimatingRef.current && !isTouchDraggingRef.current) {
         targetScrollRef.current = currentY;
-      } else {
+      } else if (!isTouchDraggingRef.current) {
         // User dragged scrollbar during programmatic animation -> yield immediately
         stopAnimation(currentY);
       }
     };
 
-    // Touch device support: preserve silky 120Hz native touch gestures without locking
-    const onTouchStart = () => {
+    // Touch device support: captures touch gestures across pinned scenes and content
+    const onTouchStart = (e?: TouchEvent) => {
       isTouchRef.current = true;
       isAnchorNavigatingRef.current = false;
       activeKeyRef.current = null;
       virtualDriveRef.current = null;
 
-      // Yield any programmatic animation so native touch has instant priority
+      if (e?.touches && e.touches.length === 1) {
+        const touch = e.touches[0];
+        touchStartYRef.current = touch.clientY;
+        touchStartXRef.current = touch.clientX;
+        touchLastYRef.current = touch.clientY;
+        touchStartTimeRef.current = performance.now();
+      }
+      isTouchDraggingRef.current = false;
+
+      // Yield any running programmatic animation so touch has instant priority
       if (isAnimatingRef.current) {
         stopAnimation(window.scrollY);
       } else {
@@ -406,10 +428,103 @@ export default function SmoothScroll() {
       }
     };
 
-    const onTouchEnd = () => {
+    const onTouchMove = (e: TouchEvent) => {
+      if (!e.touches || e.touches.length !== 1) return;
+      const touch = e.touches[0];
+      const currentY = touch.clientY;
+      const currentX = touch.clientX;
+      const diffX = Math.abs(currentX - touchStartXRef.current);
+      const diffY = Math.abs(currentY - touchStartYRef.current);
+
+      // Allow natural horizontal gestures without hijacking
+      if (!isTouchDraggingRef.current && diffX > diffY && diffX > 8) {
+        return;
+      }
+
+      // Small threshold before engaging vertical drag (preserves crisp taps on links/buttons)
+      if (!isTouchDraggingRef.current && diffY > 6) {
+        isTouchDraggingRef.current = true;
+      }
+
+      if (isTouchDraggingRef.current) {
+        if (e.cancelable) {
+          e.preventDefault();
+        }
+
+        const maxScroll = getMaxScroll();
+        const deltaY = touchLastYRef.current - currentY;
+        touchLastYRef.current = currentY;
+
+        if (Math.abs(deltaY) < 0.3) return;
+
+        // Controlled tactile tracking (~1.35x in intro for responsive frame scrubbing)
+        const inIntro = isInIntro();
+        const touchMult = inIntro ? MOBILE_TOUCH_MOVE_MULT : 1.15;
+        let newTarget = targetScrollRef.current + deltaY * touchMult;
+        newTarget = Math.max(0, Math.min(maxScroll, newTarget));
+
+        // Strict lead clamp: prevents wild finger swipes from leaping ahead of animations
+        const leadCap = getLeadCap();
+        if (newTarget > currentScrollRef.current + leadCap) {
+          newTarget = currentScrollRef.current + leadCap;
+        } else if (newTarget < currentScrollRef.current - leadCap) {
+          newTarget = currentScrollRef.current - leadCap;
+        }
+
+        targetScrollRef.current = newTarget;
+        startAnimation();
+      }
+    };
+
+    const onTouchEnd = (e?: TouchEvent) => {
       isTouchRef.current = false;
-      currentScrollRef.current = window.scrollY;
-      targetScrollRef.current = window.scrollY;
+
+      if (!isTouchDraggingRef.current) {
+        currentScrollRef.current = window.scrollY;
+        targetScrollRef.current = window.scrollY;
+        return;
+      }
+      isTouchDraggingRef.current = false;
+
+      const touch = e?.changedTouches ? e.changedTouches[0] : null;
+      if (!touch) return;
+
+      const maxScroll = getMaxScroll();
+      const now = performance.now();
+      const elapsed = now - touchStartTimeRef.current;
+      const totalDeltaY = touchStartYRef.current - touch.clientY;
+      const absDist = Math.abs(totalDeltaY);
+
+      // Controlled swipe detection: short flick (< 350ms) and meaningful distance (> 28px)
+      if (elapsed < 350 && absDist > 28) {
+        const dir: 1 | -1 = totalDeltaY > 0 ? 1 : -1;
+        const inIntro = isInIntro();
+        const leadCap = getLeadCap();
+
+        // Smoothly advances by one controlled section transition step
+        const swipeStep = inIntro
+          ? Math.min(leadCap, Math.max(KEY_SINGLE_STEP, absDist * 0.7))
+          : Math.min(leadCap, Math.max(KEY_SINGLE_STEP * 1.5, absDist * 1.1));
+
+        let newTarget = targetScrollRef.current + dir * swipeStep;
+        newTarget = Math.max(0, Math.min(maxScroll, newTarget));
+
+        if (newTarget > currentScrollRef.current + leadCap) {
+          newTarget = currentScrollRef.current + leadCap;
+        } else if (newTarget < currentScrollRef.current - leadCap) {
+          newTarget = currentScrollRef.current - leadCap;
+        }
+
+        targetScrollRef.current = newTarget;
+
+        // Sustain controlled deceleration momentum
+        virtualDriveRef.current = {
+          dir,
+          speed: inIntro ? getIntroSpeed() * 0.85 : KEYBOARD_SCROLL_SPEED * 0.8,
+          expiry: now + Math.min(180, Math.round(absDist * 1.2)),
+        };
+        startAnimation();
+      }
     };
 
     // Smooth in-page anchor navigation (e.g. #about, #skills, #contact, #hero)
@@ -462,6 +577,7 @@ export default function SmoothScroll() {
     document.addEventListener("visibilitychange", onBlur);
     window.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("touchstart", onTouchStart, { passive: true });
+    window.addEventListener("touchmove", onTouchMove, { passive: false });
     window.addEventListener("touchend", onTouchEnd, { passive: true });
     window.addEventListener("touchcancel", onTouchEnd, { passive: true });
     window.addEventListener("resize", getMaxScroll, { passive: true });
@@ -487,6 +603,7 @@ export default function SmoothScroll() {
       document.removeEventListener("visibilitychange", onBlur);
       window.removeEventListener("scroll", onScroll);
       window.removeEventListener("touchstart", onTouchStart);
+      window.removeEventListener("touchmove", onTouchMove);
       window.removeEventListener("touchend", onTouchEnd);
       window.removeEventListener("touchcancel", onTouchEnd);
       window.removeEventListener("resize", getMaxScroll);
