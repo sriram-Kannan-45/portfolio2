@@ -67,7 +67,7 @@ export default function NeuralNetworkBackground({ active = false }: { active?: b
       const hit = findNetworkHit(graph, x, y, hover ? 24 : 42);
       if (!hit) return;
       lastHover = { x, y, time: now };
-      const reach = width < 768 ? 360 : 520;
+      const reach = width < 768 ? 240 : 380;
       const propagation = propagateNetwork(graph, hit, reach);
 
       // Begin at the touched branch, splitting the signal in both directions.
@@ -84,7 +84,7 @@ export default function NeuralNetworkBackground({ active = false }: { active?: b
       });
       propagation.distances.forEach((distance, node) => {
         if (distance > reach) return;
-        animate(neurons[node], [{ opacity: 0.4 }, { opacity: 1, offset: 0.2 }, { opacity: 0.4 }], {
+        animate(neurons[node], [{ opacity: 0.65 }, { opacity: 1, offset: 0.2 }, { opacity: 0.65 }], {
           delay: distance / SIGNAL_SPEED * 1000,
           duration: 650,
           easing: "ease-out",
@@ -134,11 +134,15 @@ export default function NeuralNetworkBackground({ active = false }: { active?: b
       <svg className="neural-network-graph" viewBox={`0 0 ${width} ${height}`} focusable="false">
         <defs>
           <radialGradient id={glowId}>
-            <stop stopColor="#9af5de" stopOpacity="0.65" />
-            <stop offset="0.3" stopColor="#34d399" stopOpacity="0.16" />
+            <stop stopColor="#b5f7df" stopOpacity="0.6" />
+            <stop offset="0.2" stopColor="#64d9b4" stopOpacity="0.24" />
+            <stop offset="0.55" stopColor="#34d399" stopOpacity="0.06" />
             <stop offset="1" stopColor="#34d399" stopOpacity="0" />
           </radialGradient>
         </defs>
+        <g className="neural-network-dendrites" fill="none" strokeLinecap="round" strokeLinejoin="round">
+          {graph.dendrites.map((path, level) => <path key={level} className={`neural-network-dendrite-${level}`} d={path} />)}
+        </g>
         <g className="neural-network-connections" fill="none">
           {graph.edges.map((edge, index) => <path key={index} d={edge.path} />)}
         </g>
@@ -152,8 +156,9 @@ export default function NeuralNetworkBackground({ active = false }: { active?: b
         </g>
         {graph.nodes.map((node, index) => (
           <g key={index} className="neural-network-neuron">
-            <circle cx={node.x} cy={node.y} r="15" fill={`url(#${glowId})`} />
-            <circle className="neural-network-core" cx={node.x} cy={node.y} r={node.radius} />
+            <circle cx={node.x} cy={node.y} r={node.radius * 5.5} fill={`url(#${glowId})`} />
+            <path className="neural-network-body" d={node.body} />
+            <circle className="neural-network-core" cx={node.x} cy={node.y} r={node.radius * 0.3} />
           </g>
         ))}
         <g className="neural-network-origin" transform="translate(-100 -100)">

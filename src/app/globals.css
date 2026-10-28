@@ -225,16 +225,16 @@
   }
 }
 
-/* An organic neural mesh lights up locally in response to pointer interaction. */
+/* Dense cell bodies and tapered dendrites, with local synaptic impulses. */
 .neural-network-background {
   position: absolute;
   inset: 0;
   overflow: hidden;
   pointer-events: none;
   visibility: hidden;
-  opacity: 0.85;
+  opacity: 0.95;
   contain: strict;
-  mask-image: radial-gradient(ellipse at 50% 45%, rgba(0, 0, 0, 0.45), #000 80%);
+  mask-image: radial-gradient(ellipse at 50% 45%, rgba(0, 0, 0, 0.5), #000 82%);
 }
 
 .neural-network-background[data-active="true"] {
@@ -251,30 +251,67 @@
 
 .neural-network-aura {
   background:
-    radial-gradient(ellipse at 8% 34%, rgba(16, 185, 129, 0.045), transparent 38%),
-    radial-gradient(ellipse at 90% 68%, rgba(52, 211, 153, 0.04), transparent 38%);
+    radial-gradient(ellipse at 8% 34%, rgba(16, 185, 129, 0.065), transparent 48%),
+    radial-gradient(ellipse at 90% 68%, rgba(52, 211, 153, 0.055), transparent 48%);
+}
+
+.neural-network-dendrites {
+  stroke: #65aa94;
+}
+
+.neural-network-dendrite-0 {
+  stroke-width: 0.95;
+  opacity: 0.34;
+}
+
+.neural-network-dendrite-1 {
+  stroke-width: 0.65;
+  opacity: 0.27;
+}
+
+.neural-network-dendrite-2 {
+  stroke-width: 0.4;
+  opacity: 0.21;
 }
 
 .neural-network-connections path {
-  stroke: #49766a;
-  stroke-width: 0.65;
-  opacity: 0.28;
+  stroke: #70b49e;
+  stroke-width: 0.8;
+  stroke-linecap: round;
+  opacity: 0.32;
 }
 
 .neural-network-signal {
   stroke: #a7f3d0;
-  stroke-width: 1.6;
+  stroke-width: 1.35;
   stroke-linecap: round;
-  stroke-dasharray: 0.08 1;
+  stroke-dasharray: 0.12 1;
   opacity: 0;
 }
 
 .neural-network-neuron {
-  opacity: 0.4;
+  opacity: 0.65;
+}
+
+.neural-network-body {
+  fill: #70bca2;
+  stroke: #a7e8d0;
+  stroke-width: 0.45;
+  stroke-opacity: 0.5;
 }
 
 .neural-network-core {
-  fill: #a7f3d0;
+  fill: #cbfce9;
+}
+
+@media (max-width: 767px) {
+  .neural-network-background {
+    mask-image: radial-gradient(ellipse at 50% 42%, rgba(0, 0, 0, 0.55), #000 90%);
+  }
+
+  .neural-network-dendrite-0 { stroke-width: 0.85; }
+  .neural-network-dendrite-1 { stroke-width: 0.6; }
+  .neural-network-dendrite-2 { stroke-width: 0.45; }
 }
 
 .neural-network-touch-glow {
